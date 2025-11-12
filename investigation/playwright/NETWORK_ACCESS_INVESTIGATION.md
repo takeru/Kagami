@@ -226,6 +226,28 @@ browser = p.chromium.launch(
    - Chromiumは独自のネットワークスタックを使用
    - サブプロセスとして起動されるため環境の継承が不完全
 
+### Firefox と WebKit の調査結果
+
+他のブラウザエンジンでの動作可能性も調査しました：
+
+#### Firefox (Gecko エンジン)
+```
+❌ 起動失敗
+Error: Running Nightly as root in a regular user's session is not supported.
+```
+**理由**: Firefoxはセキュリティ上の理由でroot権限での実行を禁止しているため、この環境では起動できません。
+
+#### WebKit (Safari エンジン)
+```
+❌ 起動失敗
+Error: Host system is missing dependencies to run browsers.
+```
+**理由**: WebKitの実行に必要なシステムライブラリ（29個）が不足しているため起動できません。
+
+### 結論
+
+**この環境で起動できるブラウザはChromiumのみ**であり、そのChromiumもJWT認証プロキシに対応していないため、Playwrightでの外部HTTPSアクセスは不可能です。
+
 ---
 
 ## 💡 実用的な解決策
@@ -459,8 +481,9 @@ claude.ai/codeでのセッション永続化には、以下の戦略が考えら
 
 1. ✅ **プロキシ設定の調査** - 完了
    - 環境変数の確認済み（JWT認証プロキシ）
-   - Playwrightへの適用テスト完了（JWT認証非対応と判明）
-   - 結論: Playwrightは現状でHTTPSアクセス不可
+   - Chromiumでのプロキシ設定テスト完了（JWT認証非対応と判明）
+   - Firefox/WebKitの調査完了（起動不可）
+   - 結論: すべてのブラウザでHTTPSアクセス不可
 
 2. **Cookie変換ユーティリティの作成**
    - Playwright形式 → urllib形式の変換
