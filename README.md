@@ -5,9 +5,10 @@ PyGithub を使用して GitHub API を操作するプロジェクトです。
 ## 機能
 
 - Issue に自動的にコメントを追加
-- Issue コメントのリアルタイム監視と自動返信
+- Issue コメントのリアルタイム監視（新しいコメントを検出して表示）
 - ETag ベースの効率的な polling でrate limit を節約
 - GitHub API との統合
+- Claude Code と組み合わせて適切な返信を生成
 
 ## セットアップ
 
@@ -49,9 +50,9 @@ python add_issue_comment.py takeru/Kagami 1
 python add_issue_comment.py takeru/finmlz
 ```
 
-### Issue コメントを監視して自動返信
+### Issue コメントを監視
 
-新しいコメントを検出すると自動的に返信します。ETag ベースの polling でrate limit を節約します。
+新しいコメントを検出して内容を表示します。ETag ベースの polling でrate limit を節約します。
 
 ```bash
 # 基本的な使用方法（30秒間隔でチェック）
@@ -77,10 +78,19 @@ python monitor_issues.py takeru/Kagami 3 --interval 10
 #### 監視の仕組み
 
 - **ETag ベースの polling**: 変更がない場合はrate limit を消費しない
-- **自動返信**: 新しいコメントを検出すると自動的に返信
-- **自分のコメントは無視**: 無限ループを防ぐため、自分のコメントには反応しない
+- **コメント検出**: 新しいコメントを検出すると内容を標準出力に表示
+- **自分のコメントは無視**: 自分のコメントには反応しない
 - **Rate limit 監視**: 定期的にrate limit の状態を表示
 - **Ctrl+C で停止**: 安全に監視を停止できる
+
+#### ワークフロー
+
+1. `monitor_issues.py` を起動してissueを監視
+2. 新しいコメントが投稿されると、その内容が標準出力に表示される
+3. Claude Code（あなた）がコメント内容を確認
+4. 適切な返信を考えて `add_issue_comment.py` で投稿
+
+この仕組みにより、Claude が文脈を理解して適切に返信できます。
 
 ## PyGithub の基本的な使い方
 

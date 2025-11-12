@@ -41,13 +41,14 @@ def get_repo_info():
     return None
 
 
-def add_witty_comment_to_issue(repo_name: str, issue_number: int = None):
+def add_witty_comment_to_issue(repo_name: str, issue_number: int = None, custom_message: str = None):
     """
-    指定された issue に気の利いたコメントを追加する
+    指定された issue にコメントを追加する
 
     Args:
         repo_name: リポジトリ名 (owner/repo 形式)
         issue_number: Issue番号 (None の場合は最初のオープンissueを使用)
+        custom_message: カスタムメッセージ (None の場合はデフォルトメッセージを使用)
     """
     # GitHub トークンを環境変数から取得
     token = os.getenv("GITHUB_TOKEN")
@@ -81,17 +82,23 @@ def add_witty_comment_to_issue(repo_name: str, issue_number: int = None):
         print(f"🎯 Issue #{issue.number}: {issue.title}")
         print(f"   URL: {issue.html_url}")
 
-        # 気の利いたコメントを作成
-        witty_comments = [
-            "🤖 Claude からこんにちは！\n\nこの issue について分析してみました。PyGithub を使って自動的にコメントを追加する機能をテストしています。\n\n何か具体的なサポートが必要な場合は、お知らせください！",
-            "👋 自動化テストでお邪魔します！\n\nPyGithub の API 統合が正常に動作していることを確認しました。この issue に関して、何かお手伝いできることがあれば教えてください。\n\n素敵な一日を！✨",
-            "🚀 GitHub API 統合テストを実行中...\n\nPyGithub を使用してこのコメントを自動的に追加しています。API が正常に動作していることを確認できました！\n\nこの issue の進捗を応援しています！📊"
-        ]
+        # コメントテキストを決定
+        if custom_message:
+            comment_text = custom_message
+            print(f"\n📝 カスタムメッセージを使用します")
+        else:
+            # 気の利いたコメントを作成
+            witty_comments = [
+                "🤖 Claude からこんにちは！\n\nこの issue について分析してみました。PyGithub を使って自動的にコメントを追加する機能をテストしています。\n\n何か具体的なサポートが必要な場合は、お知らせください！",
+                "👋 自動化テストでお邪魔します！\n\nPyGithub の API 統合が正常に動作していることを確認しました。この issue に関して、何かお手伝いできることがあれば教えてください。\n\n素敵な一日を！✨",
+                "🚀 GitHub API 統合テストを実行中...\n\nPyGithub を使用してこのコメントを自動的に追加しています。API が正常に動作していることを確認できました！\n\nこの issue の進捗を応援しています！📊"
+            ]
 
-        # ランダムにコメントを選択（issue番号を使ってシード）
-        import random
-        random.seed(issue.number)
-        comment_text = random.choice(witty_comments)
+            # ランダムにコメントを選択（issue番号を使ってシード）
+            import random
+            random.seed(issue.number)
+            comment_text = random.choice(witty_comments)
+            print(f"\n📝 デフォルトメッセージを使用します")
 
         # コメントを追加
         comment = issue.create_comment(comment_text)
@@ -109,38 +116,51 @@ def add_witty_comment_to_issue(repo_name: str, issue_number: int = None):
 
 def main():
     """メイン関数"""
-    # コマンドライン引数を処理
-    repo_name = None
-    issue_number = None
+    import argparse
 
-    if len(sys.argv) >= 2:
-        repo_name = sys.argv[1]
-    else:
+    parser = argparse.ArgumentParser(
+        description="GitHub issue にコメントを追加",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用例:
+  # 現在のリポジトリの最初のオープン issue にコメント
+  python add_issue_comment.py
+
+  # 特定のリポジトリの issue にコメント
+  python add_issue_comment.py takeru/Kagami 1
+
+  # カスタムメッセージを指定
+  python add_issue_comment.py takeru/Kagami 1 --message "こんにちは！"
+        """
+    )
+
+    parser.add_argument("repo", nargs="?", help="リポジトリ名 (owner/repo 形式)")
+    parser.add_argument("issue", nargs="?", type=int, help="Issue番号")
+    parser.add_argument(
+        "--message", "-m",
+        help="カスタムメッセージ（指定しない場合はデフォルトメッセージ）"
+    )
+
+    args = parser.parse_args()
+
+    # リポジトリ名の決定
+    repo_name = args.repo
+    if not repo_name:
         # git リポジトリから自動的に取得を試みる
         repo_name = get_repo_info()
         if not repo_name:
-            print("使用方法: python add_issue_comment.py [owner/repo] [issue_number]")
-            print("\n例:")
-            print("  python add_issue_comment.py takeru/Kagami 1")
-            print("  python add_issue_comment.py takeru/Kagami  # 最初のオープンissueに追加")
-            sys.exit(1)
-
-    if len(sys.argv) >= 3:
-        try:
-            issue_number = int(sys.argv[2])
-        except ValueError:
-            print("エラー: issue_number は整数である必要があります")
+            parser.print_help()
             sys.exit(1)
 
     print(f"🔍 リポジトリ: {repo_name}")
-    if issue_number:
-        print(f"🔢 Issue番号: {issue_number}")
+    if args.issue:
+        print(f"🔢 Issue番号: {args.issue}")
     else:
         print("🔢 最初のオープンissueを使用します")
     print()
 
     # コメントを追加
-    add_witty_comment_to_issue(repo_name, issue_number)
+    add_witty_comment_to_issue(repo_name, args.issue, args.message)
 
 
 if __name__ == "__main__":

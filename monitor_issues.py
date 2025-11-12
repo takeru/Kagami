@@ -88,7 +88,7 @@ class IssueMonitor:
 
     def process_new_comments(self, comments: list):
         """
-        新しいコメントを処理して自動返信
+        新しいコメントを処理して表示
 
         Args:
             comments: コメントのリスト
@@ -108,61 +108,20 @@ class IssueMonitor:
             new_comments.append(comment)
             self.seen_comment_ids.add(comment.id)
 
-        # 新しいコメントに返信
+        # 新しいコメントを表示
         for comment in new_comments:
-            print(f"\n💬 新しいコメントを検出!")
-            print(f"   投稿者: @{comment.user.login}")
-            print(f"   時刻: {comment.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"   本文: {comment.body[:100]}{'...' if len(comment.body) > 100 else ''}")
-            print(f"   URL: {comment.html_url}")
-
-            # 自動返信を作成
-            self.reply_to_comment(comment)
-
-    def reply_to_comment(self, comment):
-        """
-        コメントに自動返信
-
-        Args:
-            comment: 返信対象のコメント
-        """
-        try:
-            # 返信メッセージを作成
-            reply_text = self.generate_reply(comment)
-
-            # コメントを追加
-            new_comment = self.issue.create_comment(reply_text)
-
-            print(f"✅ 自動返信を投稿しました!")
-            print(f"   URL: {new_comment.html_url}")
-
-            # 自分のコメントIDを追加
-            self.seen_comment_ids.add(new_comment.id)
-
-        except GithubException as e:
-            print(f"❌ 返信エラー: {e}")
-
-    def generate_reply(self, comment) -> str:
-        """
-        コメントへの返信を生成
-
-        Args:
-            comment: 元のコメント
-
-        Returns:
-            返信テキスト
-        """
-        # シンプルな自動返信
-        replies = [
-            f"@{comment.user.login} さん、コメントありがとうございます！👋\n\nご意見を確認しました。自動監視システムが正常に動作していることを確認できました。",
-            f"@{comment.user.login} さん、こんにちは！🤖\n\nコメントを検出しました。このメッセージは自動的に生成されています。",
-            f"@{comment.user.login} さん、フィードバックありがとうございます！✨\n\nissue監視システムが正常に動作しています。"
-        ]
-
-        # コメントIDをシードにしてランダムに選択
-        import random
-        random.seed(comment.id)
-        return random.choice(replies)
+            print(f"\n" + "=" * 70)
+            print(f"💬 新しいコメントを検出しました！")
+            print(f"=" * 70)
+            print(f"📍 Issue: #{self.issue_number} - {self.issue.title}")
+            print(f"👤 投稿者: @{comment.user.login}")
+            print(f"🕐 時刻: {comment.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"🔗 URL: {comment.html_url}")
+            print(f"\n--- コメント内容 ---")
+            print(comment.body)
+            print(f"--- ここまで ---\n")
+            print(f"💡 返信するには: python add_issue_comment.py {self.repo_name} {self.issue_number}")
+            print(f"=" * 70)
 
     def run(self):
         """監視ループを実行"""
