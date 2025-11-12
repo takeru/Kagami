@@ -52,13 +52,36 @@ fi # if false
 log "setup .venv..."
 uv sync --dev
 
+log "Verify PyGithub installation..."
+uv run python -c "import github; print('✓ PyGithub installed')"
+
+log "Verify Playwright installation..."
+uv run python -c "import playwright; print('✓ Playwright installed')"
+
+log "Install Playwright Chromium browser..."
+uv run playwright install chromium
+
+log "Install Playwright system dependencies..."
+# エラーが出ても続行（権限の問題など）
+uv run playwright install-deps chromium || log "Warning: Some system dependencies could not be installed, but continuing"
+
 # Restore stdout and print summary for Claude
 exec 1>&3
 
 echo "SETUP COMPLETED SUCCESSFULLY"
-echo "Hot to run python code:"
-echo "uv run python src/package/path/to/script.py"
-echo "uv run pytest tests/"
-echo "uv run pyright src/"
-echo "uv run ruff check src/"
-echo "uv run ruff format src/"
+echo ""
+echo "How to run python code:"
+echo "  uv run python src/package/path/to/script.py"
+echo "  uv run pytest tests/"
+echo "  uv run pyright src/"
+echo "  uv run ruff check src/"
+echo "  uv run ruff format src/"
+echo ""
+echo "Installed components:"
+echo "  ✓ PyGithub - GitHub API client"
+echo "  ✓ Playwright - Browser automation"
+echo ""
+echo "Important notes for Playwright:"
+echo "  - Use --no-sandbox flags when launching browsers"
+echo "  - External network access is restricted"
+echo "  - See PLAYWRIGHT_INVESTIGATION.md for details"
