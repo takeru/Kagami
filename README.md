@@ -5,6 +5,8 @@ PyGithub を使用して GitHub API を操作するプロジェクトです。
 ## 機能
 
 - Issue に自動的にコメントを追加
+- Issue コメントのリアルタイム監視と自動返信
+- ETag ベースの効率的な polling でrate limit を節約
 - GitHub API との統合
 
 ## セットアップ
@@ -46,6 +48,39 @@ python add_issue_comment.py takeru/Kagami 1
 # takeru/finmlz の最初のオープン issue にコメントを追加
 python add_issue_comment.py takeru/finmlz
 ```
+
+### Issue コメントを監視して自動返信
+
+新しいコメントを検出すると自動的に返信します。ETag ベースの polling でrate limit を節約します。
+
+```bash
+# 基本的な使用方法（30秒間隔でチェック）
+python monitor_issues.py owner/repo issue_number
+
+# チェック間隔を指定（10秒）
+python monitor_issues.py owner/repo issue_number --interval 10
+
+# 詳細情報を表示
+python monitor_issues.py owner/repo issue_number --verbose
+```
+
+#### 監視の例
+
+```bash
+# takeru/Kagami の issue #3 を監視
+python monitor_issues.py takeru/Kagami 3
+
+# 10秒間隔で監視
+python monitor_issues.py takeru/Kagami 3 --interval 10
+```
+
+#### 監視の仕組み
+
+- **ETag ベースの polling**: 変更がない場合はrate limit を消費しない
+- **自動返信**: 新しいコメントを検出すると自動的に返信
+- **自分のコメントは無視**: 無限ループを防ぐため、自分のコメントには反応しない
+- **Rate limit 監視**: 定期的にrate limit の状態を表示
+- **Ctrl+C で停止**: 安全に監視を停止できる
 
 ## PyGithub の基本的な使い方
 
