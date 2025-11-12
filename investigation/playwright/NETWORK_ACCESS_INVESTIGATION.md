@@ -244,9 +244,51 @@ Error: Host system is missing dependencies to run browsers.
 ```
 **理由**: WebKitの実行に必要なシステムライブラリ（29個）が不足しているため起動できません。
 
+### Playwright Route API を使った回避策の調査
+
+GitHubのIssue (#11967, #443) で報告されている回避策も検証しました：
+
+#### 方法4: context.request.fetch() を使ったヘッダー注入
+```python
+def handle_route(route):
+    headers = dict(route.request.headers)
+    headers['Proxy-Authorization'] = f'Basic {encoded_jwt}'
+
+    response = context.request.fetch(
+        route.request,
+        headers=headers
+    )
+    route.fulfill(response=response)
+
+context.route("**/*", handle_route)
+```
+
+**結果**: ❌ `getaddrinfo EAI_AGAIN example.com`
+
+**理由**: `context.request.fetch()` はプロキシを通らず、直接DNS解決を試みます。この環境ではDNS解決ができないため失敗しました。
+
+#### 方法5: route.continue_() でヘッダーを追加
+```python
+def handle_route(route):
+    headers = dict(route.request.headers)
+    headers['Proxy-Authorization'] = f'Basic {encoded_jwt}'
+    route.continue_(headers=headers)
+
+context.route("**/*", handle_route)
+```
+
+**結果**: ❌ `Protocol error (Fetch.continueRequest): Unsafe header: Proxy-Authorization`
+
+**理由**: **これが決定的な証拠です。** Chromiumは`Proxy-Authorization`ヘッダーを**「危険なヘッダー（Unsafe header）」として明示的に分類**しており、DevTools Protocolレベルで上書きを禁止しています。これはセキュリティ機能であり、回避不可能です。
+
 ### 結論
 
-**この環境で起動できるブラウザはChromiumのみ**であり、そのChromiumもJWT認証プロキシに対応していないため、Playwrightでの外部HTTPSアクセスは不可能です。
+**この環境で起動できるブラウザはChromiumのみ**であり、そのChromiumは：
+1. JWT認証プロキシに対応していない
+2. `Proxy-Authorization`ヘッダーの上書きをセキュリティ上の理由で禁止している
+3. Route APIを使った回避策も動作しない
+
+したがって、**Playwrightでの外部HTTPSアクセスは完全に不可能**です。
 
 ---
 
@@ -483,7 +525,9 @@ claude.ai/codeでのセッション永続化には、以下の戦略が考えら
    - 環境変数の確認済み（JWT認証プロキシ）
    - Chromiumでのプロキシ設定テスト完了（JWT認証非対応と判明）
    - Firefox/WebKitの調査完了（起動不可）
-   - 結論: すべてのブラウザでHTTPSアクセス不可
+   - Playwright Route APIの回避策検証完了（セキュリティ制限により不可）
+   - **決定的な発見**: `Proxy-Authorization`は「Unsafe header」として禁止されている
+   - 結論: PlaywrightでのHTTPSアクセスは完全に不可能
 
 2. **Cookie変換ユーティリティの作成**
    - Playwright形式 → urllib形式の変換
@@ -511,3 +555,6 @@ claude.ai/codeでのセッション永続化には、以下の戦略が考えら
 - [Python urllib.request](https://docs.python.org/3/library/urllib.request.html)
 - [Playwright Proxy Settings](https://playwright.dev/python/docs/network#http-proxy)
 - [HTTP Cookie Management](https://docs.python.org/3/library/http.cookiejar.html)
+- [Playwright Issue #11967 - Proxy-Authorization via Route API](https://github.com/microsoft/playwright/issues/11967)
+- [Playwright Issue #443 - Proxy-Authorization in Chromium](https://github.com/microsoft/playwright-python/issues/443)
+- [Chromium HTTP Authentication Design](https://www.chromium.org/developers/design-documents/http-authentication/)
