@@ -1,0 +1,19 @@
+[project]
+name = "kagami"
+version = "0.1.0"
+description = "GitHub bot with Claude Code integration"
+requires-python = ">=3.11"
+dependencies = [
+    "PyGithub>=2.1.1",
+    "playwright>=1.56.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+# スクリプトベースのプロジェクトなので、ビルドバックエンドは不要
