@@ -100,8 +100,8 @@ class IssueMonitor:
             if comment.id in self.seen_comment_ids:
                 continue
 
-            # 自分のコメントはスキップ
-            if comment.user.login == self.my_username:
+            # Claudeのマーカーがあるコメントはスキップ（見えないマーカーで判定）
+            if "<!-- claude-bot-marker -->" in comment.body:
                 self.seen_comment_ids.add(comment.id)
                 continue
 

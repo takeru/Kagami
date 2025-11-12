@@ -84,7 +84,7 @@ def add_witty_comment_to_issue(repo_name: str, issue_number: int = None, custom_
 
         # コメントテキストを決定
         if custom_message:
-            comment_text = custom_message
+            message_body = custom_message
             print(f"\n📝 カスタムメッセージを使用します")
         else:
             # 気の利いたコメントを作成
@@ -97,8 +97,11 @@ def add_witty_comment_to_issue(repo_name: str, issue_number: int = None, custom_
             # ランダムにコメントを選択（issue番号を使ってシード）
             import random
             random.seed(issue.number)
-            comment_text = random.choice(witty_comments)
+            message_body = random.choice(witty_comments)
             print(f"\n📝 デフォルトメッセージを使用します")
+
+        # Claudeのマーカーを追加（見える絵文字 + 見えないHTMLコメント）
+        comment_text = f"{message_body}\n\n---\n🤖 _Posted by Claude_\n<!-- claude-bot-marker -->"
 
         # コメントを追加
         comment = issue.create_comment(comment_text)
