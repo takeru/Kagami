@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright テストページ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Playwright 動作テストページ</h1>
+    <p>このページはPlaywrightの動作確認用です。</p>
+
+    <button class="button" onclick="handleClick()">ボタンをクリック</button>
+    <button class="button" id="test-button">テストボタン</button>
+
+    <div id="result"></div>
+
+    <script>
+        function handleClick() {
+            document.getElementById('result').innerHTML =
+                '<p style="color: green;">✓ ボタンがクリックされました！ 時刻: ' + new Date().toLocaleString() + '</p>';
+        }
+
+        document.getElementById('test-button').addEventListener('click', function() {
+            this.textContent = 'クリック済み';
+            this.style.backgroundColor = '#ff9800';
+        });
+    </script>
+</body>
+</html>
