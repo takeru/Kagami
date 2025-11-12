@@ -4,7 +4,7 @@ PyGithub を使用して GitHub の issue に気の利いたコメントを追�
 """
 import os
 import sys
-from github import Github
+from github import Github, Auth
 from github.GithubException import GithubException
 
 
@@ -55,8 +55,9 @@ def add_witty_comment_to_issue(repo_name: str, issue_number: int = None):
         print("エラー: GITHUB_TOKEN 環境変数が設定されていません")
         sys.exit(1)
 
-    # GitHub API に接続
-    g = Github(token)
+    # GitHub API に接続（新しい Auth API を使用）
+    auth = Auth.Token(token)
+    g = Github(auth=auth)
 
     try:
         # リポジトリを取得

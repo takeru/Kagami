@@ -51,10 +51,11 @@ python add_issue_comment.py takeru/finmlz
 
 ```python
 import os
-from github import Github
+from github import Github, Auth
 
-# 認証
-g = Github(os.getenv("GITHUB_TOKEN"))
+# 認証（新しい Auth API を使用）
+auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
+g = Github(auth=auth)
 
 # リポジトリの取得
 repo = g.get_repo("owner/repo")
