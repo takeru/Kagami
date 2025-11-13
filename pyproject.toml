@@ -6,6 +6,10 @@ requires-python = ">=3.11"
 dependencies = [
     "PyGithub>=2.1.1",
     "playwright>=1.56.0",
+    "proxy-py>=2.4.10",
+    "selenium>=4.38.0",
+    "undetected-chromedriver>=3.5.5",
+    "webdriver-manager>=4.0.2",
 ]
 
 [project.optional-dependencies]
