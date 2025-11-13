@@ -58,6 +58,10 @@ def test_with_spki_hash():
             browser = p.chromium.launch(
                 headless=True,
                 args=[
+                    # 共有メモリ対策（最重要）
+                    '--disable-dev-shm-usage',
+                    '--single-process',
+                    # サンドボックス無効化
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     # プロキシ設定
@@ -70,9 +74,9 @@ def test_with_spki_hash():
                     '--disable-web-security',
                     '--reduce-security-for-testing',
                     '--disable-features=CertificateTransparencyEnforcement',
-                    # クラッシュ防止のためのフラグ
-                    '--disable-dev-shm-usage',
+                    # パフォーマンス最適化
                     '--disable-gpu',
+                    '--disable-accelerated-2d-canvas',
                 ]
             )
 
@@ -129,9 +133,15 @@ def test_claude_ai_with_spki():
             browser = p.chromium.launch(
                 headless=True,
                 args=[
+                    # 共有メモリ対策（最重要）
+                    '--disable-dev-shm-usage',
+                    '--single-process',
+                    # サンドボックス無効化
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
+                    # プロキシ設定
                     '--proxy-server=http://127.0.0.1:8888',
+                    # CA証明書のSPKIハッシュを指定
                     f'--ignore-certificate-errors-spki-list={CA_SPKI_HASH}',
                     # 追加の証明書バイパスフラグ
                     '--ignore-certificate-errors',
@@ -139,9 +149,9 @@ def test_claude_ai_with_spki():
                     '--disable-web-security',
                     '--reduce-security-for-testing',
                     '--disable-features=CertificateTransparencyEnforcement',
-                    # クラッシュ防止のためのフラグ
-                    '--disable-dev-shm-usage',
+                    # パフォーマンス最適化
                     '--disable-gpu',
+                    '--disable-accelerated-2d-canvas',
                 ]
             )
 
