@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cloudflare回避を試みる - より高度な設定
+直接ログインページにアクセスしてログイン要素を検出
 """
 import subprocess
 import time
@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 
 
 print("="*60)
-print("Claude AI Access Test (Undetected Mode)")
+print("Claude AI Direct Login Page Test")
 print("="*60)
 print()
 
@@ -20,7 +20,7 @@ proxy_process = subprocess.Popen(
     [
         'uv', 'run', 'proxy',
         '--hostname', '127.0.0.1',
-        '--port', '8901',
+        '--port', '8903',
         '--plugins', 'proxy.plugin.proxy_pool.ProxyPoolPlugin',
         '--proxy-pool', os.environ['HTTPS_PROXY'],
     ],
@@ -32,7 +32,7 @@ time.sleep(5)
 print("✅ Proxy started\n")
 
 # 一時ディレクトリ作成
-user_data_dir = tempfile.mkdtemp(prefix="claude_undetected_", dir="/tmp")
+user_data_dir = tempfile.mkdtemp(prefix="claude_direct_login_", dir="/tmp")
 cache_dir = tempfile.mkdtemp(prefix="cache_", dir="/tmp")
 
 try:
@@ -41,7 +41,7 @@ try:
 
         browser = p.chromium.launch_persistent_context(
             user_data_dir=user_data_dir,
-            headless=True,  # Note: headless検出を回避する追加フラグ
+            headless=True,
             args=[
                 # 共有メモリ対策
                 '--disable-dev-shm-usage',
@@ -52,7 +52,7 @@ try:
                 '--disable-setuid-sandbox',
 
                 # プロキシ設定
-                '--proxy-server=http://127.0.0.1:8901',
+                '--proxy-server=http://127.0.0.1:8903',
                 '--ignore-certificate-errors',
 
                 # Bot検出回避
@@ -88,10 +88,10 @@ try:
         page.add_init_script(await_js)
         print("✅ Anti-detection scripts injected\n")
 
-        # Test: claude.ai/codeにアクセス
-        print("Accessing https://claude.ai/code/ ...")
+        # 直接ログインページにアクセス
+        print("Accessing https://claude.ai/login?returnTo=%2Fcode ...")
         try:
-            response = page.goto("https://claude.ai/code/", timeout=60000)
+            response = page.goto("https://claude.ai/login?returnTo=%2Fcode", timeout=60000)
             print(f"✅ Status: {response.status}")
             print(f"✅ URL: {response.url}")
 
@@ -99,7 +99,7 @@ try:
             title = page.title()
             print(f"✅ Title: {title}")
 
-            # CloudflareチャレンジかCheck
+            # Cloudflareチャレンジの確認
             content = page.content()
 
             if "Just a moment" in content or "Cloudflare" in content:
@@ -119,13 +119,13 @@ try:
                     print(f"   ⚠️ Challenge not completed after 30s")
 
                 # 最終状態を確認
-                final_content = page.content()
-                final_title = page.title()
-                print(f"\n   Final title: {final_title}")
-                print(f"   Final content length: {len(final_content)} bytes")
+                content = page.content()
+                title = page.title()
+                print(f"\n   Final title: {title}")
+                print(f"   Final content length: {len(content)} bytes")
 
             # スクリーンショット
-            page.screenshot(path="claude_undetected.png", full_page=True)
+            page.screenshot(path="claude_direct_login.png", full_page=True)
             print(f"\n✅ Screenshot saved")
 
             # ログイン要素を検出
@@ -149,20 +149,20 @@ try:
             # リンクを探す
             links = page.locator("a").all()
             print(f"\nFound {len(links)} links")
-            for i, link in enumerate(links[:15], 1):
+            for i, link in enumerate(links[:20], 1):
                 try:
                     text = link.text_content(timeout=1000) or ""
                     text = text.strip()[:40]
                     href = link.get_attribute("href", timeout=1000) or ""
-                    if text or "login" in href.lower():
-                        print(f"  [{i}] '{text}' → {href[:50]}")
+                    if text or "login" in href.lower() or "google" in href.lower() or "email" in href.lower():
+                        print(f"  [{i}] '{text}' → {href[:60]}")
                 except:
                     pass
 
             # HTMLを保存
-            with open("claude_undetected.html", 'w', encoding='utf-8') as f:
+            with open("claude_direct_login.html", 'w', encoding='utf-8') as f:
                 f.write(content)
-            print(f"\n✅ HTML saved: claude_undetected.html ({len(content)} bytes)")
+            print(f"\n✅ HTML saved: claude_direct_login.html ({len(content)} bytes)")
 
         except Exception as e:
             print(f"❌ Failed: {e}")

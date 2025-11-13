@@ -119,16 +119,25 @@ try:
                     print(f"   ⚠️ Challenge not completed after 30s")
 
                 # 最終状態を確認
-                final_content = page.content()
-                final_title = page.title()
-                print(f"\n   Final title: {final_title}")
-                print(f"   Final content length: {len(final_content)} bytes")
+                content = page.content()
+                title = page.title()
+                print(f"\n   Final title: {title}")
+                print(f"   Final content length: {len(content)} bytes")
+
+            # チャレンジ完了後のコンテンツを再取得
+            print("\n" + "="*60)
+            print("Page loaded successfully")
+            print("="*60)
+            final_title = page.title()
+            final_url = page.url
+            print(f"Final Title: {final_title}")
+            print(f"Final URL: {final_url}")
 
             # スクリーンショット
-            page.screenshot(path="claude_undetected.png", full_page=True)
+            page.screenshot(path="claude_login_page.png", full_page=True)
             print(f"\n✅ Screenshot saved")
 
-            # ログイン要素を検出
+            # ログインボタンを探す
             print("\n" + "="*60)
             print("Looking for login elements...")
             print("="*60)
@@ -136,7 +145,7 @@ try:
             # ボタンを探す
             buttons = page.locator("button").all()
             print(f"\nFound {len(buttons)} buttons")
-            for i, btn in enumerate(buttons[:15], 1):
+            for i, btn in enumerate(buttons[:10], 1):
                 try:
                     text = btn.text_content(timeout=1000) or ""
                     text = text.strip()[:50]
@@ -149,20 +158,29 @@ try:
             # リンクを探す
             links = page.locator("a").all()
             print(f"\nFound {len(links)} links")
-            for i, link in enumerate(links[:15], 1):
+            for i, link in enumerate(links[:10], 1):
                 try:
                     text = link.text_content(timeout=1000) or ""
-                    text = text.strip()[:40]
+                    text = text.strip()[:30]
                     href = link.get_attribute("href", timeout=1000) or ""
-                    if text or "login" in href.lower():
-                        print(f"  [{i}] '{text}' → {href[:50]}")
+                    if text:
+                        print(f"  [{i}] '{text}' → {href[:40]}")
                 except:
                     pass
 
             # HTMLを保存
-            with open("claude_undetected.html", 'w', encoding='utf-8') as f:
-                f.write(content)
-            print(f"\n✅ HTML saved: claude_undetected.html ({len(content)} bytes)")
+            final_content = page.content()
+            with open("claude_login_page.html", 'w', encoding='utf-8') as f:
+                f.write(final_content)
+            print(f"\n✅ HTML saved: claude_login_page.html ({len(final_content)} bytes)")
+
+            print("\n" + "="*60)
+            print("✅ Page successfully loaded and ready for login!")
+            print("="*60)
+            print("\nNext steps:")
+            print("  1. Review the screenshot and HTML file")
+            print("  2. Identify the login button selector")
+            print("  3. Implement automated login")
 
         except Exception as e:
             print(f"❌ Failed: {e}")
