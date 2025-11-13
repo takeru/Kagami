@@ -188,6 +188,45 @@ uv run python playwright_setup/samples/05_full_example.py https://claude.ai/logi
 
 ---
 
+### サンプル6: 共有プロキシの使用
+
+**ファイル**: `samples/06_with_shared_proxy.py`
+
+バックグラウンドで起動したプロキシを複数のスクリプトで共有します。
+
+```bash
+# 1. プロキシをバックグラウンドで起動（1回だけ）
+uv run python playwright_setup/proxy_manager.py start
+
+# 2. このスクリプトを何度でも実行可能
+uv run python playwright_setup/samples/06_with_shared_proxy.py
+
+# 3. プロキシを停止
+uv run python playwright_setup/proxy_manager.py stop
+```
+
+**メリット**:
+- 🚀 起動時間の節約（3秒 → 0秒）
+- 🔄 複数スクリプトで同じプロキシを共有
+- 💾 リソース効率が良い
+
+**プロキシマネージャーのコマンド**:
+```bash
+# 起動
+uv run python playwright_setup/proxy_manager.py start
+
+# 状態確認
+uv run python playwright_setup/proxy_manager.py status
+
+# ログ表示
+uv run python playwright_setup/proxy_manager.py logs
+
+# 停止
+uv run python playwright_setup/proxy_manager.py stop
+```
+
+---
+
 ## ⚙️ 重要な設定
 
 ### Claude Code Web環境で必須のフラグ
