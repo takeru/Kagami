@@ -134,14 +134,14 @@ def test_improved_bypass():
         ]
 
         print("\n" + "=" * 70)
-        print("Test: mainブランチの改良手法 + Cookie認証")
+        print("Test: mainブランチの改良手法 + Cookie認証（headless=False）")
         print("=" * 70)
 
         with sync_playwright() as p:
-            print("\n[1] ブラウザ起動（改良されたAnti-detection設定）...")
+            print("\n[1] ブラウザ起動（改良されたAnti-detection設定＋headless=False）...")
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
-                headless=True,
+                headless=False,
                 args=chromium_args,
                 ignore_https_errors=True,
             )
