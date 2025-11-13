@@ -12,7 +12,25 @@ Claude Code Web環境でPlaywrightを使ってclaude.ai/codeにアクセスし�
 
 ## 📊 最終結論
 
-**Playwright経由でのHTTPSサイトアクセスは完全に不可能**
+**UPDATE (2025-11-13)**: ローカルプロキシサーバーの実装により、**部分的成功**を達成
+
+### ローカルプロキシアプローチ（最新）
+
+✅ **curlでのHTTPS通信に成功**
+- Pythonでローカルプロキシサーバーを実装（src/local_proxy.py）
+- CONNECTトンネル確立成功
+- JWT認証の透過的な処理成功
+
+❌ **PlaywrightでのHTTPS通信は未解決**
+- CONNECTトンネルは確立するがタイムアウト
+- CA証明書ダウンロードの失敗（Broken pipe）
+- さらなる調査が必要
+
+詳細は [LOCAL_PROXY_INVESTIGATION.md](./LOCAL_PROXY_INVESTIGATION.md) を参照
+
+### 直接接続の結論（従来の調査）
+
+**Playwright直接経由でのHTTPSサイトアクセスは完全に不可能**
 
 ### 理由
 
@@ -40,6 +58,7 @@ Claude Code Web環境でPlaywrightを使ってclaude.ai/codeにアクセスし�
 | 4 | Firefox/WebKit | ❌ 起動不可 |
 | 5 | Route API (fetch) | ❌ DNS解決失敗 |
 | 6 | Route API (continue) | ❌ Unsafe header エラー |
+| 7 | ローカルプロキシサーバー | 🔄 curl成功、Playwright未解決 |
 
 ---
 
@@ -80,6 +99,7 @@ Claude Code Web環境でPlaywrightを使ってclaude.ai/codeにアクセスし�
 | ファイル | 説明 | ステータス |
 |---------|------|-----------|
 | **[NETWORK_ACCESS_INVESTIGATION.md](./NETWORK_ACCESS_INVESTIGATION.md)** | **メイン調査レポート**（560行以上）<br>ネットワークアクセスの完全な調査結果 | ✅ 完了 |
+| **[LOCAL_PROXY_INVESTIGATION.md](./LOCAL_PROXY_INVESTIGATION.md)** | **NEW** ローカルプロキシサーバー実装調査<br>curl成功、Playwright未解決の詳細 | ✅ 完了 |
 | **[PLAYWRIGHT_INVESTIGATION.md](./PLAYWRIGHT_INVESTIGATION.md)** | 初期調査レポート<br>Playwrightの基本動作確認 | ✅ 完了 |
 | **[README.md](./README.md)** | このファイル（索引とサマリ） | ✅ 完了 |
 
@@ -102,6 +122,17 @@ Claude Code Web環境でPlaywrightを使ってclaude.ai/codeにアクセスし�
 | `test_playwright_proxy_auth.py` | 認証情報を明示的に設定 | ❌ 失敗 |
 | `test_playwright_simple_proxy.py` | シンプルなプロキシアドレステスト | ❌ 失敗 |
 | **`test_route_api_proxy.py`** | **Route API回避策テスト** | ❌ Unsafe header |
+
+#### **NEW** ローカルプロキシテスト
+
+| ファイル | テスト内容 | 結果 |
+|---------|----------|------|
+| **`test_local_proxy.py`** | ローカルプロキシ + Playwright総合テスト | 🔄 実装中 |
+| **`test_local_proxy_ignore_cert.py`** | 証明書エラー無視版テスト | 🔄 未解決 |
+| **`test_simple_local_proxy.py`** | シンプルなローカルプロキシテスト | 🔄 タイムアウト |
+
+関連ファイル:
+- **src/local_proxy.py** - ローカルプロキシサーバー実装（標準ライブラリのみ）
 
 #### ブラウザエンジンテスト
 
