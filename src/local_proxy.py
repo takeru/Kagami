@@ -136,6 +136,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
         双方向のデータトンネリング
         client_sock ↔ server_sock
         """
+        total_client_to_server = 0
+        total_server_to_client = 0
+
         try:
             sockets = [client_sock, server_sock]
             timeout = 60
@@ -144,24 +147,33 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 readable, _, exceptional = select.select(sockets, [], sockets, timeout)
 
                 if exceptional:
+                    self.log_message(f"Tunnel exception detected")
                     break
 
                 if not readable:
+                    self.log_message(f"Tunnel timeout after {timeout}s (sent: {total_client_to_server}B, recv: {total_server_to_client}B)")
                     break
 
                 for sock in readable:
                     try:
                         data = sock.recv(8192)
                         if not data:
+                            self.log_message(f"Tunnel closed (sent: {total_client_to_server}B, recv: {total_server_to_client}B)")
                             return
 
                         if sock is client_sock:
                             server_sock.sendall(data)
+                            total_client_to_server += len(data)
+                            self.log_message(f"Tunnel: client → server {len(data)}B (total: {total_client_to_server}B)")
                         else:
                             client_sock.sendall(data)
-                    except:
+                            total_server_to_client += len(data)
+                            self.log_message(f"Tunnel: server → client {len(data)}B (total: {total_server_to_client}B)")
+                    except Exception as e:
+                        self.log_message(f"Tunnel error: {e}")
                         return
         finally:
+            self.log_message(f"Tunnel final stats: sent {total_client_to_server}B, received {total_server_to_client}B")
             try:
                 server_sock.close()
             except:
