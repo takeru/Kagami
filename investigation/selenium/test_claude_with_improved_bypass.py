@@ -195,9 +195,21 @@ def test_improved_bypass():
             response = page.goto("https://claude.ai/code", wait_until="domcontentloaded", timeout=60000)
             print(f"    Status: {response.status}")
 
-            # 少し待つ
-            print("\n[6] ページロード待機（10秒）...")
-            time.sleep(10)
+            # Cloudflareチャレンジの自動解決を待つ（最大60秒）
+            print("\n[6] Cloudflareチャレンジの自動解決を待機（最大60秒）...")
+            for i in range(6):  # 10秒 × 6回 = 60秒
+                time.sleep(10)
+                current_title = page.title()
+                current_url = page.url
+                print(f"    [{(i+1)*10}秒] タイトル: '{current_title}' | URL: {current_url}")
+
+                # チャレンジが解決されたかチェック
+                if "Just a moment" not in current_title and "claude" in current_title.lower():
+                    print(f"    ✅ Cloudflareチャレンジが解決されました！（{(i+1)*10}秒後）")
+                    break
+                elif current_url != "https://claude.ai/code":
+                    print(f"    ℹ️ URLが変更されました: {current_url}")
+                    break
 
             print("\n[7] ページ情報取得...")
             title = page.title()
