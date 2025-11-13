@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Playwright testing artifacts
+# Exclude screenshots and HTML files in the root directory
+/*.png
+/*.html
+*_summary.md
