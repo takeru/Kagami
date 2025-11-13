@@ -3,6 +3,29 @@ revision = 3
 requires-python = ">=3.11"
 
 [[package]]
+name = "2captcha-python-async"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "httpx" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/b0/667b5e7d345c4765a4b75dce8a6e50b2e5c4fb46f70a8752319a7938edd7/2captcha_python_async-1.5.1.tar.gz", hash = "sha256:c9d5b73ddac23a8bcdc1b96b075f7165945c0d79836f8370d3802d9c58ab3236", size = 32930, upload-time = "2025-07-12T17:05:12.805Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/d9/c0dda42c84c87f592dc853d0dfaedd30cc66800b6f104003db02364581aa/2captcha_python_async-1.5.1-py3-none-any.whl", hash = "sha256:44ee4d3f8152831c6f1b6103acdb8c2d59f0cc9bbc5ddb7e389adf66359d638f", size = 27647, upload-time = "2025-07-12T17:05:11.402Z" },
+]
+
+[[package]]
+name = "aiofiles"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/8a/340a1555ae33d7354dbca4faa54948d76d89a27ceef032c8c3bc661d003e/aiofiles-25.1.0-py3-none-any.whl", hash = "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695", size = 14668, upload-time = "2025-10-09T20:51:03.174Z" },
+]
+
+[[package]]
 name = "anyio"
 version = "4.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -396,6 +419,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "playwright" },
+    { name = "playwright-captcha" },
     { name = "playwright-stealth" },
     { name = "proxy-py" },
     { name = "pygithub" },
@@ -413,6 +437,7 @@ dev = [
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.27.0" },
     { name = "playwright", specifier = ">=1.56.0" },
+    { name = "playwright-captcha", specifier = ">=0.1.1" },
     { name = "playwright-stealth", specifier = ">=2.0.0" },
     { name = "proxy-py", specifier = ">=2.4.0" },
     { name = "pygithub", specifier = ">=2.1.1" },
@@ -464,6 +489,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/61/bd/8c02c3388ae14edc374ac9f22cbe4e14826c6a51b2d8eaf86e89fabee264/playwright-1.56.0-py3-none-win32.whl", hash = "sha256:d87b79bcb082092d916a332c27ec9732e0418c319755d235d93cc6be13bdd721", size = 35639837, upload-time = "2025-11-11T18:39:27.174Z" },
     { url = "https://files.pythonhosted.org/packages/64/27/f13b538fbc6b7a00152f4379054a49f6abc0bf55ac86f677ae54bc49fb82/playwright-1.56.0-py3-none-win_amd64.whl", hash = "sha256:3c7fc49bb9e673489bf2622855f9486d41c5101bbed964638552b864c4591f94", size = 35639843, upload-time = "2025-11-11T18:39:30.851Z" },
     { url = "https://files.pythonhosted.org/packages/f2/c7/3ee8b556107995846576b4fe42a08ed49b8677619421f2afacf6ee421138/playwright-1.56.0-py3-none-win_arm64.whl", hash = "sha256:2745490ae8dd58d27e5ea4d9aa28402e8e2991eb84fb4b2fd5fbde2106716f6f", size = 31248959, upload-time = "2025-11-11T18:39:33.998Z" },
+]
+
+[[package]]
+name = "playwright-captcha"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "2captcha-python-async" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/c5/db6523f102bbf069746e7b6a47803cbc7f56a7e34635a504165844c09fc1/playwright_captcha-0.1.1.tar.gz", hash = "sha256:e8f2ec7e7dab84bbba5053d56aadcc1030fe76c1a5314625cd254cd009a5b9d7", size = 34124, upload-time = "2025-07-12T17:37:55.773Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/4f/af153778ca11f7b273e4d2b40265ff1000dada009128dd661430962246fb/playwright_captcha-0.1.1-py3-none-any.whl", hash = "sha256:edcca33c2e09fd9f51ca98ef753f949c3f8ecbe38abecb4b8a30c3b79ad79f4c", size = 53164, upload-time = "2025-07-12T17:37:54.741Z" },
 ]
 
 [[package]]
