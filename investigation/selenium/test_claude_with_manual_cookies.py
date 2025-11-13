@@ -124,6 +124,21 @@ def test_with_manual_cookies():
 
         print(f"\n✓ 環境変数からCookieを読み込みました: {len(cookies)}個のCookie")
 
+        # Cookieのフォーマットを修正（sameSite値の正規化）
+        for cookie in cookies:
+            # sameSiteの値を正規化
+            same_site = cookie.get('sameSite', 'Lax')
+            if same_site not in ['Strict', 'Lax', 'None']:
+                cookie['sameSite'] = 'Lax'
+            # httpOnlyがない場合はFalseに設定
+            if 'httpOnly' not in cookie:
+                cookie['httpOnly'] = False
+            # secureがない場合はTrueに設定
+            if 'secure' not in cookie:
+                cookie['secure'] = True
+
+        print(f"✓ Cookieフォーマットを正規化しました")
+
         # proxy.pyを起動
         proxy_process = start_proxy()
 

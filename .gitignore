@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Investigation artifacts
+# Exclude screenshots and HTML snapshots from Playwright/Selenium tests
+claude_*.png
+claude_*.html
+investigation/selenium/*.png
+investigation/selenium/*.html
