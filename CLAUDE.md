@@ -1,5 +1,12 @@
 **重要**: ユーザーとの対話は必ず日本語で行うこと
 
+**【Git運用の重要な注意】**
+- **ブラウザから取得したキャプチャ画像やHTMLを絶対にgitにコミットしないこと**
+  - スクリーンショット（*.png）
+  - HTMLスナップショット（*.html）
+  - 調査用の一時ファイル
+  - これらは.gitignoreで除外されているが、明示的にaddしないように注意
+
 ## Claude Code Webかどうかの判断
 ```
 if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "Claude Code Webです"; else echo "Claude Code Webではありません"; fi
