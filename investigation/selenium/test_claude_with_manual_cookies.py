@@ -2,8 +2,8 @@
 手動Cookie取得を使ったclaude.ai/codeアクセス
 
 1. ローカル環境でclaude.ai/codeにログイン
-2. Cookieをエクスポート（このスクリプトが提供するフォーマット）
-3. cookies.jsonに保存
+2. Cookieをbase64エンコードしてエクスポート
+3. 環境変数 CLAUDE_COOKIES_BASE64 に設定
 4. このスクリプトでCookieをインポートしてアクセス
 """
 
@@ -15,6 +15,7 @@ import time
 import os
 import sys
 import json
+import base64
 
 def start_proxy():
     """proxy.pyサーバーを起動"""
@@ -44,18 +45,26 @@ def stop_proxy(process):
     except subprocess.TimeoutExpired:
         process.kill()
 
-def load_cookies(cookie_file):
-    """Cookieファイルを読み込む"""
-    if not os.path.exists(cookie_file):
+def load_cookies_from_env():
+    """環境変数からCookieを読み込む"""
+    cookies_base64 = os.getenv('CLAUDE_COOKIES_BASE64')
+
+    if not cookies_base64:
         return None
 
-    with open(cookie_file, 'r') as f:
-        return json.load(f)
+    try:
+        # base64デコード
+        cookies_json = base64.b64decode(cookies_base64).decode('utf-8')
+        # JSONパース
+        return json.loads(cookies_json)
+    except Exception as e:
+        print(f"❌ Cookie解析エラー: {e}")
+        return None
 
 def print_cookie_instructions():
     """Cookie取得方法を表示"""
     print("\n" + "=" * 70)
-    print("📋 Cookie取得方法")
+    print("📋 Cookie取得方法（base64エンコード版）")
     print("=" * 70)
     print("\n【ローカル環境で実行してください】")
     print("\n1. ローカルのブラウザでhttps://claude.ai/codeを開く")
@@ -65,9 +74,9 @@ def print_cookie_instructions():
     print("5. 以下のコードを貼り付けて実行:")
     print("\n" + "-" * 70)
     print("""
-// Cookieを取得してJSONフォーマットで出力
-copy(JSON.stringify(
-  document.cookie.split('; ').map(c => {
+// Cookieを取得してbase64エンコードしてコピー
+(function() {
+  const cookies = document.cookie.split('; ').map(c => {
     const [name, value] = c.split('=');
     return {
       name: name,
@@ -78,37 +87,42 @@ copy(JSON.stringify(
       secure: true,
       sameSite: 'Lax'
     };
-  }),
-  null,
-  2
-));
-console.log('✓ Cookieをクリップボードにコピーしました！');
+  });
+
+  const cookiesJson = JSON.stringify(cookies);
+  const cookiesBase64 = btoa(unescape(encodeURIComponent(cookiesJson)));
+
+  copy(cookiesBase64);
+  console.log('✅ Cookieをbase64エンコードしてクリップボードにコピーしました！');
+  console.log('Cookie数:', cookies.length);
+  console.log('エンコード後のサイズ:', cookiesBase64.length, '文字');
+})();
 """)
     print("-" * 70)
-    print("\n6. クリップボードの内容を cookies.json に保存")
-    print("7. cookies.json をこの環境にアップロード")
-    print("8. このスクリプトを再実行")
+    print("\n6. クリップボードの内容（base64文字列）をコピー")
+    print("7. この環境で以下のコマンドを実行:")
+    print("\n   export CLAUDE_COOKIES_BASE64='<コピーしたbase64文字列>'")
+    print("\n8. このスクリプトを再実行")
     print("\n" + "=" * 70)
 
 def test_with_manual_cookies():
     """手動Cookie取得を使ってアクセス"""
     proxy_process = None
-    cookie_file = "/home/user/Kagami/cookies.json"
 
     try:
         print("=" * 70)
-        print("手動Cookie取得でclaude.ai/codeアクセス")
+        print("手動Cookie取得でclaude.ai/codeアクセス（環境変数版）")
         print("=" * 70)
 
-        # Cookieファイルの確認
-        cookies = load_cookies(cookie_file)
+        # 環境変数からCookieを読み込む
+        cookies = load_cookies_from_env()
 
         if cookies is None:
-            print(f"\n⚠️  Cookieファイルが見つかりません: {cookie_file}")
+            print(f"\n⚠️  環境変数 CLAUDE_COOKIES_BASE64 が設定されていません")
             print_cookie_instructions()
             return False
 
-        print(f"\n✓ Cookieファイルを読み込みました: {len(cookies)}個のCookie")
+        print(f"\n✓ 環境変数からCookieを読み込みました: {len(cookies)}個のCookie")
 
         # proxy.pyを起動
         proxy_process = start_proxy()
