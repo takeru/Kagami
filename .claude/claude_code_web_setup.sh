@@ -70,6 +70,69 @@ log "Install Playwright system dependencies..."
 # uv run playwright install-deps chromium || log "Warning: Some system dependencies could not be installed, but continuing"
 uv run playwright install-deps firefox || log "Warning: Some Firefox dependencies could not be installed, but continuing"
 
+log "Generate Playwright Firefox config with proxy settings..."
+uv run python - << 'PYTHON_SCRIPT'
+import os
+import json
+from urllib.parse import urlparse
+
+# プロキシURLをパース
+proxy_url = os.getenv("HTTPS_PROXY")
+if not proxy_url:
+    print("Warning: HTTPS_PROXY not set, creating config without proxy")
+    config = {
+        "launchOptions": {
+            "headless": True,
+            "firefoxUserPrefs": {
+                "privacy.trackingprotection.enabled": False,
+                "network.proxy.allow_hijacking_localhost": True,
+                "network.stricttransportsecurity.preloadlist": False,
+                "security.cert_pinning.enforcement_level": 0,
+                "security.enterprise_roots.enabled": True,
+                "security.ssl.errorReporting.enabled": False,
+                "browser.xul.error_pages.expert_bad_cert": True,
+                "media.navigator.streams.fake": True
+            }
+        },
+        "contextOptions": {
+            "ignoreHttpsErrors": True
+        }
+    }
+else:
+    parsed = urlparse(proxy_url)
+    config = {
+        "launchOptions": {
+            "headless": True,
+            "proxy": {
+                "server": f"{parsed.scheme}://{parsed.hostname}:{parsed.port}",
+                "username": parsed.username,
+                "password": parsed.password
+            },
+            "firefoxUserPrefs": {
+                "privacy.trackingprotection.enabled": False,
+                "network.proxy.allow_hijacking_localhost": True,
+                "network.stricttransportsecurity.preloadlist": False,
+                "security.cert_pinning.enforcement_level": 0,
+                "security.enterprise_roots.enabled": True,
+                "security.ssl.errorReporting.enabled": False,
+                "browser.xul.error_pages.expert_bad_cert": True,
+                "media.navigator.streams.fake": True
+            }
+        },
+        "contextOptions": {
+            "ignoreHttpsErrors": True
+        }
+    }
+
+# ファイルに保存
+os.makedirs('.mcp', exist_ok=True)
+with open('.mcp/playwright-firefox-config.json', 'w') as f:
+    json.dump(config, f, indent=2)
+    f.write('\n')
+
+print("✓ Generated .mcp/playwright-firefox-config.json")
+PYTHON_SCRIPT
+
 # Restore stdout and print summary for Claude
 exec 1>&3
 
