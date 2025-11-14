@@ -15,7 +15,7 @@
   "enableAllProjectMcpServers": true,
   "permissions": {
     "allow": [
-      "mcp__playwright__.*"
+      "mcp__playwright"
     ]
   }
 }
