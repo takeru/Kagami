@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--config",
+        ".mcp/playwright-firefox-config.json",
+        "--browser",
+        "firefox",
+        "--proxy-server",
+        "$HTTPS_PROXY"
+      ]
+    }
+  }
+}
