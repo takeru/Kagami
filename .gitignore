@@ -211,3 +211,6 @@ __marimo__/
 /*.png
 /*.html
 *_summary.md
+
+# Playwright MCP Firefox profile
+.mcp/firefox_home/
