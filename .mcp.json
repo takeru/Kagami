@@ -10,7 +10,10 @@
         "firefox",
         "--proxy-server",
         "$HTTPS_PROXY"
-      ]
+      ],
+      "env": {
+        "HOME": "/home/user/Kagami/.mcp/firefox_home"
+      }
     }
   }
 }
