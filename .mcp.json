@@ -1,15 +1,10 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "npx",
+      "command": "bash",
       "args": [
-        "@playwright/mcp@latest",
-        "--config",
-        ".mcp/playwright-firefox-config.json",
-        "--browser",
-        "firefox",
-        "--proxy-server",
-        "$HTTPS_PROXY"
+        "-c",
+        "npx @playwright/mcp@latest --config .mcp/playwright-firefox-config.json --browser firefox --proxy-server=\"$HTTPS_PROXY\""
       ],
       "env": {
         "HOME": "/home/user/Kagami/.mcp/firefox_home"
