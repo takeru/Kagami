@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """
-Claude.ai 手動ログインスクリプト
+Claude.ai ログインスクリプト
 
-このスクリプトは、ブラウザを開いてClaude.aiのログインページを表示します。
-ユーザーが手動でログインすると、セッション情報が保存されます。
+このスクリプトは、メールアドレスを自動入力してClaude.aiにログインします。
+認証コードの入力は対話的に行います。
 
 使い方:
+    export EMAIL="your@email.com"
     uv run python scripts/login_claude.py
 
 注意:
     - HTTPS_PROXY環境変数が設定されている必要があります
-    - ブラウザウィンドウが開くので、手動でログインしてください
-    - ログイン完了後、Enterキーを押してください
+    - EMAIL環境変数にメールアドレスを設定してください
+    - メールで受け取った認証コードを入力する必要があります
 """
 
 import sys
 import os
+import time
 
 # プロジェクトルートをパスに追加
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -27,7 +29,7 @@ from playwright.sync_api import sync_playwright
 def main():
     """メイン処理"""
     print("=" * 70)
-    print("Claude.ai 手動ログイン")
+    print("Claude.ai ログイン")
     print("=" * 70)
     print()
 
@@ -37,8 +39,15 @@ def main():
         print("   Please set HTTPS_PROXY before running this script.")
         return 1
 
-    print("このスクリプトは、ブラウザを開いてログインページを表示します。")
-    print("手動でログインしてください。")
+    # EMAILの確認
+    email = os.environ.get('EMAIL')
+    if not email:
+        print("❌ Error: EMAIL environment variable is not set")
+        print("   Please set EMAIL before running this script.")
+        print("   Example: export EMAIL='your@email.com'")
+        return 1
+
+    print(f"ログインメールアドレス: {email}")
     print()
 
     # ログインマネージャーを作成（ヘッドレスモードOFF）
@@ -74,27 +83,167 @@ def main():
             except Exception as e:
                 print(f"⚠️ Network idle timeout: {e}")
 
+            # Step 2: "Continue with email" ボタンをクリック
             print("\n" + "=" * 70)
-            print("Step 2: 手動ログイン")
+            print("Step 2: 'Continue with email' ボタンをクリック")
+            print("=" * 70)
+
+            try:
+                # ボタンを探してクリック
+                email_button = page.locator("button:has-text('Continue with email')").first
+                email_button.wait_for(state="visible", timeout=10000)
+                print("✅ Found 'Continue with email' button")
+
+                email_button.click()
+                print("✅ Clicked 'Continue with email' button")
+
+                # ページ遷移を待機
+                time.sleep(2)
+
+            except Exception as e:
+                print(f"❌ Failed to click 'Continue with email' button: {e}")
+                print("   Please click the button manually in the browser window.")
+                input("   Press Enter when ready...")
+
+            # Step 3: メールアドレスを入力
+            print("\n" + "=" * 70)
+            print("Step 3: メールアドレスを入力")
+            print("=" * 70)
+            print(f"Current URL: {page.url}")
+
+            try:
+                # メール入力フィールドを探す
+                # 複数のパターンを試す
+                email_input = None
+                selectors = [
+                    "input[type='email']",
+                    "input[name='email']",
+                    "input[placeholder*='email' i]",
+                    "input[placeholder*='メール' i]",
+                ]
+
+                for selector in selectors:
+                    try:
+                        input_field = page.locator(selector).first
+                        if input_field.is_visible(timeout=2000):
+                            email_input = input_field
+                            print(f"✅ Found email input field: {selector}")
+                            break
+                    except:
+                        continue
+
+                if email_input:
+                    # メールアドレスを入力
+                    email_input.fill(email)
+                    print(f"✅ Entered email: {email}")
+
+                    # 送信ボタンを探してクリック
+                    submit_selectors = [
+                        "button[type='submit']",
+                        "button:has-text('Continue')",
+                        "button:has-text('送信')",
+                        "button:has-text('次へ')",
+                    ]
+
+                    submit_button = None
+                    for selector in submit_selectors:
+                        try:
+                            btn = page.locator(selector).first
+                            if btn.is_visible(timeout=2000):
+                                submit_button = btn
+                                print(f"✅ Found submit button: {selector}")
+                                break
+                        except:
+                            continue
+
+                    if submit_button:
+                        submit_button.click()
+                        print("✅ Clicked submit button")
+                        time.sleep(3)  # 送信処理を待つ
+                    else:
+                        print("⚠️  Submit button not found. Please submit manually.")
+                        input("   Press Enter after submitting...")
+
+                else:
+                    print("❌ Email input field not found")
+                    print("   Please enter your email manually in the browser window.")
+                    input("   Press Enter when ready...")
+
+            except Exception as e:
+                print(f"❌ Failed to enter email: {e}")
+                print("   Please enter your email manually in the browser window.")
+                input("   Press Enter when ready...")
+
+            # Step 4: 認証コードを入力
+            print("\n" + "=" * 70)
+            print("Step 4: 認証コードを入力")
             print("=" * 70)
             print()
-            print("ブラウザウィンドウが開いています。")
-            print("以下の手順でログインしてください：")
-            print()
-            print("  1. 'Continue with email' ボタンをクリック")
-            print("  2. メールアドレスを入力")
-            print("  3. メールで受け取った認証コードを入力")
-            print("  4. ログインが完了したら、このターミナルに戻ってください")
+            print("メールで受け取った認証コードを入力してください。")
+            print("認証URLを開いて、表示された番号を入力してください。")
             print()
 
-            # ユーザーがログインするまで待機
-            input("ログインが完了したら、Enterキーを押してください...")
+            # 認証コードを入力してもらう
+            auth_code = input("認証コード (6桁): ").strip()
 
+            if auth_code:
+                try:
+                    # 認証コード入力フィールドを探す
+                    code_input = None
+                    code_selectors = [
+                        "input[type='text']",
+                        "input[name='code']",
+                        "input[placeholder*='code' i]",
+                        "input[placeholder*='コード' i]",
+                    ]
+
+                    for selector in code_selectors:
+                        try:
+                            inp = page.locator(selector).first
+                            if inp.is_visible(timeout=2000):
+                                code_input = inp
+                                print(f"✅ Found code input field: {selector}")
+                                break
+                        except:
+                            continue
+
+                    if code_input:
+                        code_input.fill(auth_code)
+                        print(f"✅ Entered auth code: {auth_code}")
+
+                        # 送信ボタンをクリック
+                        time.sleep(1)
+                        submit_btn = page.locator("button[type='submit']").first
+                        if submit_btn.is_visible(timeout=2000):
+                            submit_btn.click()
+                            print("✅ Clicked submit button")
+                        else:
+                            print("⚠️  Please click submit button manually")
+                            input("   Press Enter after clicking...")
+
+                        # ログイン処理を待つ
+                        time.sleep(3)
+
+                    else:
+                        print("❌ Auth code input field not found")
+                        print("   Please enter the code manually in the browser window.")
+                        input("   Press Enter after entering the code...")
+
+                except Exception as e:
+                    print(f"❌ Failed to enter auth code: {e}")
+                    print("   Please enter the code manually in the browser window.")
+                    input("   Press Enter after entering the code...")
+            else:
+                print("⚠️  No auth code provided. Please enter manually in the browser.")
+                input("   Press Enter after completing login...")
+
+            # Step 5: ログイン状態を確認
             print("\n" + "=" * 70)
-            print("Step 3: ログイン状態を確認")
+            print("Step 5: ログイン状態を確認")
             print("=" * 70)
 
             # Claude Codeにアクセスして確認
+            print("Accessing Claude Code to verify login...")
             page.goto("https://claude.ai/code/", timeout=60000)
             login_manager.wait_for_cloudflare_challenge(page)
 
