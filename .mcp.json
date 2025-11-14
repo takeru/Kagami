@@ -5,12 +5,11 @@
       "args": [
         "@playwright/mcp@latest",
         "--config",
-        ".mcp/playwright-config.json",
+        ".mcp/playwright-firefox-config.json",
         "--browser",
-        "chromium",
+        "firefox",
         "--proxy-server",
-        "$HTTPS_PROXY",
-        "--no-sandbox"
+        "$HTTPS_PROXY"
       ]
     }
   }
