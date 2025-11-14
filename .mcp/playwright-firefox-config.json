@@ -13,6 +13,6 @@
     }
   },
   "contextOptions": {
-    "ignoreHttpsErrors": true
+    "ignoreHTTPSErrors": true
   }
 }
