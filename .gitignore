@@ -214,4 +214,3 @@ __marimo__/
 
 # Playwright MCP Firefox profile
 .mcp/firefox_home/
-.mcp/playwright-firefox-config.json
