@@ -149,6 +149,16 @@ def main():
         type=str,
         help="スクリーンショットの保存パス"
     )
+    parser.add_argument(
+        "--save-cookies",
+        action="store_true",
+        help="アクセス後にCookieを保存（更新）する"
+    )
+    parser.add_argument(
+        "--show-cookie-info",
+        action="store_true",
+        help="保存されているCookie情報を表示"
+    )
 
     args = parser.parse_args()
 
@@ -165,6 +175,25 @@ def main():
 
     # ログインマネージャーを作成
     login_manager = ClaudeLoginManager(headless=not args.show_browser)
+
+    # Cookie情報を表示
+    if args.show_cookie_info:
+        if login_manager.has_saved_cookies():
+            print("=" * 70)
+            print("保存されているCookie情報")
+            print("=" * 70)
+            try:
+                cookies = login_manager.cookie_manager.load_cookies()
+                login_manager.cookie_manager.print_cookie_info(cookies)
+                print()
+            except Exception as e:
+                print(f"❌ Error loading cookies: {e}")
+                print()
+        else:
+            print("⚠️  保存されているCookieがありません")
+            print("   Please run: uv run python scripts/login_claude.py")
+            print()
+        return 0
 
     try:
         # プロキシを起動
@@ -215,6 +244,13 @@ def main():
                 get_page_info(page)
             elif args.action == "interactive":
                 interactive_mode(page)
+
+            # Cookieを保存
+            if args.save_cookies:
+                print("\n" + "=" * 70)
+                print("Cookieを保存中...")
+                print("=" * 70)
+                login_manager.save_cookies_from_context(browser)
 
             # ブラウザを表示している場合は待機
             if args.show_browser:

@@ -4,6 +4,7 @@ Claude.ai ログイン管理クラス
 
 このモジュールは、Claude.aiへのログインとセッション管理を提供します。
 プロキシ経由でのアクセスとセッション永続化に対応しています。
+Cookie永続化により、セッション終了後も再ログイン不要でアクセスできます。
 """
 
 import os
@@ -14,6 +15,8 @@ from pathlib import Path
 from typing import Optional
 from playwright.sync_api import sync_playwright, Browser, Page, BrowserContext
 
+from .claude_cookie_manager import ClaudeCookieManager
+
 
 class ClaudeLoginManager:
     """Claude.aiへのログインとセッション管理を行うクラス"""
@@ -23,6 +26,8 @@ class ClaudeLoginManager:
         session_dir: Optional[str] = None,
         proxy_port: int = 8900,
         headless: bool = True,
+        use_cookie_storage: bool = True,
+        encryption_key: Optional[str] = None,
     ):
         """
         初期化
@@ -32,6 +37,8 @@ class ClaudeLoginManager:
                         Noneの場合は ~/.kagami/claude_session を使用
             proxy_port: プロキシサーバーのポート番号
             headless: ヘッドレスモードで実行するかどうか
+            use_cookie_storage: Cookie永続化を使用するかどうか
+            encryption_key: Cookie暗号化キー（Noneの場合は環境変数から取得）
         """
         if session_dir is None:
             home = Path.home()
@@ -42,10 +49,17 @@ class ClaudeLoginManager:
         self.proxy_port = proxy_port
         self.headless = headless
         self.proxy_process: Optional[subprocess.Popen] = None
+        self.use_cookie_storage = use_cookie_storage
 
         # ディレクトリを作成
         Path(self.session_dir).mkdir(parents=True, exist_ok=True)
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+
+        # Cookie管理マネージャーを初期化
+        if self.use_cookie_storage:
+            self.cookie_manager = ClaudeCookieManager(encryption_key=encryption_key)
+        else:
+            self.cookie_manager = None
 
     def _get_chromium_args(self) -> list[str]:
         """Chromium起動時の引数を取得"""
@@ -127,8 +141,17 @@ class ClaudeLoginManager:
         self.proxy_process = None
         print("✅ Proxy stopped")
 
-    def create_browser_context(self, playwright) -> BrowserContext:
-        """永続化コンテキストでブラウザを起動"""
+    def create_browser_context(self, playwright, load_cookies: bool = True) -> BrowserContext:
+        """
+        永続化コンテキストでブラウザを起動
+
+        Args:
+            playwright: Playwrightインスタンス
+            load_cookies: 保存されたCookieをロードするかどうか
+
+        Returns:
+            BrowserContext
+        """
         print("Launching Chromium...")
         browser = playwright.chromium.launch_persistent_context(
             user_data_dir=self.session_dir,
@@ -136,6 +159,15 @@ class ClaudeLoginManager:
             args=self._get_chromium_args()
         )
         print("✅ Browser launched")
+
+        # 保存されたCookieをロード
+        if load_cookies and self.cookie_manager and self.cookie_manager.cookies_exist():
+            try:
+                self.cookie_manager.load_to_context(browser)
+            except Exception as e:
+                print(f"⚠️  Failed to load cookies: {e}")
+                print("   Continuing without cookies...")
+
         return browser
 
     def wait_for_cloudflare_challenge(self, page: Page, max_attempts: int = 20) -> bool:
@@ -250,6 +282,36 @@ class ClaudeLoginManager:
                 print("⚠️ Not logged in. Please run login script first.")
 
             return browser, page
+
+    def save_cookies_from_context(self, context: BrowserContext) -> None:
+        """
+        ブラウザコンテキストからCookieを保存
+
+        Args:
+            context: PlaywrightのBrowserContext
+        """
+        if self.cookie_manager:
+            self.cookie_manager.save_from_context(context)
+        else:
+            print("⚠️  Cookie storage is disabled")
+
+    def delete_saved_cookies(self) -> None:
+        """保存されたCookieを削除"""
+        if self.cookie_manager:
+            self.cookie_manager.delete_cookies()
+        else:
+            print("⚠️  Cookie storage is disabled")
+
+    def has_saved_cookies(self) -> bool:
+        """
+        保存されたCookieが存在するか確認
+
+        Returns:
+            Cookieが保存されている場合True
+        """
+        if self.cookie_manager:
+            return self.cookie_manager.cookies_exist()
+        return False
 
     def __enter__(self):
         """コンテキストマネージャー: 開始"""

@@ -102,8 +102,18 @@ def main():
             if login_manager.is_logged_in(page):
                 print("✅ ログイン成功！")
                 print()
+
+                # Cookieを保存
+                print("=" * 70)
+                print("Cookieを保存中...")
+                print("=" * 70)
+                login_manager.save_cookies_from_context(browser)
+                print()
+
                 print("セッション情報が保存されました:")
-                print(f"  📁 {login_manager.session_dir}")
+                print(f"  📁 セッションディレクトリ: {login_manager.session_dir}")
+                if login_manager.cookie_manager:
+                    print(f"  🔐 暗号化Cookie: {login_manager.cookie_manager.storage_path}")
                 print()
                 print("次回からは、以下のコマンドでログイン不要でアクセスできます:")
                 print("  uv run python scripts/access_claude_code.py")

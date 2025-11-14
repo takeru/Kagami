@@ -18,11 +18,32 @@ Claude.aiのログインには**認証コード（ワンタイムパスワード
 
 ```
 src/
-  └── claude_login.py          # ログイン管理クラス
+  ├── claude_login.py          # ログイン管理クラス
+  └── claude_cookie_manager.py # Cookie永続化管理クラス
 
 scripts/
   ├── login_claude.py          # 手動ログインスクリプト
   └── access_claude_code.py    # Claude Codeアクセススクリプト
+```
+
+## Cookie永続化
+
+**重要**: Claude Code Web環境では、セッション終了時にストレージがクリアされます。そのため、Cookieを暗号化して外部ストレージに保存する機能を実装しています。
+
+### セキュリティ
+
+- Cookieは**Fernet（対称暗号化）**で暗号化されて保存されます
+- 暗号化キーは環境変数 `CLAUDE_COOKIE_KEY` から取得します
+- キーが設定されていない場合は自動生成されますが、**セッション間で保持するには環境変数に設定する必要があります**
+
+### 暗号化キーの設定
+
+```bash
+# 新しいキーを生成（初回のみ）
+export CLAUDE_COOKIE_KEY="$(uv run python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+
+# .envファイルに保存（推奨）
+echo "CLAUDE_COOKIE_KEY=$CLAUDE_COOKIE_KEY" >> ~/.env
 ```
 
 ## 使い方
@@ -64,6 +85,12 @@ uv run python scripts/access_claude_code.py --action interactive
 
 # スクリーンショットを保存
 uv run python scripts/access_claude_code.py --screenshot claude_code.png
+
+# Cookie情報を表示
+uv run python scripts/access_claude_code.py --show-cookie-info
+
+# アクセス後にCookieを保存（更新）
+uv run python scripts/access_claude_code.py --save-cookies
 ```
 
 ### 3. インタラクティブモード
@@ -115,18 +142,30 @@ with ClaudeLoginManager() as login_manager:
 
 ### セッションの保存場所
 
-セッション情報は以下のディレクトリに保存されます：
+セッション情報は以下のディレクトリとファイルに保存されます：
 
-- セッションデータ: `~/.kagami/claude_session`
+- セッションデータ: `~/.kagami/claude_session` (ブラウザプロファイル)
 - キャッシュデータ: `~/.kagami/claude_cache`
+- **暗号化Cookie**: `~/.kagami/claude_cookies.enc` (永続化用)
+
+### Cookie永続化の仕組み
+
+Claude Code Web環境では、セッション終了時に一時ストレージがクリアされます。そのため：
+
+1. **ログイン時**: Cookieを暗号化して `~/.kagami/claude_cookies.enc` に保存
+2. **アクセス時**: 暗号化されたCookieを復号化してブラウザにロード
+3. **更新時**: `--save-cookies` オプションで最新のCookieを保存
+
+この仕組みにより、セッション間でログイン状態を維持できます。
 
 ### セッションのクリア
 
-セッションをクリアする場合は、ディレクトリを削除してください：
+セッションをクリアする場合は、以下のファイルとディレクトリを削除してください：
 
 ```bash
 rm -rf ~/.kagami/claude_session
 rm -rf ~/.kagami/claude_cache
+rm -f ~/.kagami/claude_cookies.enc
 ```
 
 その後、再度 `scripts/login_claude.py` を実行してログインしてください。
@@ -160,6 +199,36 @@ rm -rf ~/.kagami/claude_cache
 uv run python scripts/login_claude.py
 ```
 
+### Cookie復号化エラー
+
+Cookieの復号化に失敗する場合は、暗号化キーが間違っている可能性があります：
+
+```bash
+# 暗号化キーを確認
+echo $CLAUDE_COOKIE_KEY
+
+# Cookieを削除して再ログイン
+rm -f ~/.kagami/claude_cookies.enc
+uv run python scripts/login_claude.py
+```
+
+### セッション間でログイン状態が維持されない
+
+1. **暗号化キーが設定されているか確認**:
+   ```bash
+   echo $CLAUDE_COOKIE_KEY
+   ```
+
+2. **Cookieファイルが存在するか確認**:
+   ```bash
+   ls -la ~/.kagami/claude_cookies.enc
+   ```
+
+3. **Cookie情報を表示**:
+   ```bash
+   uv run python scripts/access_claude_code.py --show-cookie-info
+   ```
+
 ## 技術的な詳細
 
 ### セッション永続化
@@ -169,6 +238,19 @@ Playwrightの `launch_persistent_context` を使用して、ブラウザのセ�
 ### プロキシ設定
 
 外部サイトへのアクセスには、`HTTPS_PROXY` 環境変数で指定されたプロキシ経由でアクセスします。プロキシは自動的に起動・停止されます。
+
+### Cookie永続化の技術的実装
+
+セッション終了時にストレージがクリアされる環境でも、ログイン状態を維持するために以下の仕組みを実装しています：
+
+1. **暗号化**: Fernet（対称暗号化）を使用してCookieを暗号化
+2. **保存**: 暗号化されたCookieをファイルシステムに保存
+3. **復元**: ブラウザ起動時に暗号化されたCookieを復号化してロード
+4. **更新**: 必要に応じて最新のCookieを保存
+
+暗号化には以下のライブラリを使用：
+- `cryptography`: Fernet暗号化
+- `PBKDF2HMAC`: パスワードベースのキー導出関数
 
 ### Bot検出回避
 
