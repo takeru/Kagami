@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "./.claude/claude_code_web_setup.sh",
-            "timeout": 300
+            "timeout": 600
           }
         ]
       }

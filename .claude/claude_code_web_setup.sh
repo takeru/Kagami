@@ -61,9 +61,13 @@ uv run python -c "import playwright; print('✓ Playwright installed')"
 log "Install Playwright Chromium browser..."
 uv run playwright install chromium
 
+log "Install Playwright Firefox browser..."
+uv run playwright install firefox
+
 log "Install Playwright system dependencies..."
 # エラーが出ても続行（権限の問題など）
 uv run playwright install-deps chromium || log "Warning: Some system dependencies could not be installed, but continuing"
+uv run playwright install-deps firefox || log "Warning: Some Firefox dependencies could not be installed, but continuing"
 
 # Restore stdout and print summary for Claude
 exec 1>&3
@@ -80,8 +84,11 @@ echo ""
 echo "Installed components:"
 echo "  ✓ PyGithub - GitHub API client"
 echo "  ✓ Playwright - Browser automation"
+echo "  ✓ Chromium browser"
+echo "  ✓ Firefox browser"
 echo ""
 echo "Important notes for Playwright:"
 echo "  - Use --no-sandbox flags when launching browsers"
 echo "  - External network access is restricted"
+echo "  - Firefox is recommended for MCP (better proxy support)"
 echo "  - See PLAYWRIGHT_INVESTIGATION.md for details"
