@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--no-sandbox",
+        "--browser",
+        "chromium",
+        "--proxy-server",
+        "$HTTPS_PROXY"
+      ]
+    }
+  }
+}
