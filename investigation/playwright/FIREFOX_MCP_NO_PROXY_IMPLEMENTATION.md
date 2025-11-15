@@ -194,43 +194,93 @@ Chromiumでは引き続きproxy.pyが必要です。
 
 ### テストスクリプト
 
-`investigation/playwright/test_08_firefox_mcp_no_proxy.py`で以下を検証：
+複数のテストスクリプトで段階的に検証しました：
 
-1. **プロキシ認証情報の抽出**
-   - 正しくURLをパースできるか
-   - ユーザー名/パスワードを抽出できるか
+#### 1. `test_08_firefox_mcp_no_proxy.py` - ラッパースクリプトのユニットテスト
 
-2. **設定ファイルの生成**
-   - 正しくJSONを生成できるか
-   - `extraHTTPHeaders`が追加されるか
-   - Base64エンコードが正しいか
-
-3. **プロキシなしの動作**
-   - 環境変数がない場合も動作するか
-
-### テストの実行
+プロキシ認証情報の抽出と設定ファイル生成をテスト：
 
 ```bash
 uv run python investigation/playwright/test_08_firefox_mcp_no_proxy.py
 ```
 
-**期待される出力**:
+**結果**:
 ```
+✅ 成功: プロキシ認証情報の抽出
+✅ 成功: 設定ファイルの生成
+✅ 成功: プロキシなしの設定
 🎉 すべてのテストが成功しました！
 ```
+
+#### 2. `test_09_verify_wrapper_with_real_proxy.py` - 実際のプロキシでの検証
+
+実際のHTTPS_PROXY環境変数を使ってテスト：
+
+```bash
+uv run python investigation/playwright/test_09_verify_wrapper_with_real_proxy.py
+```
+
+**結果**:
+```
+✅ 成功: 認証情報の抽出
+✅ 成功: 設定ファイルの生成
+🎉 実際の環境変数でラッパースクリプトが正しく動作しました！
+```
+
+#### 3. `test_10_firefox_extra_headers_real_proxy.py` - Firefoxでの実際のアクセステスト
+
+proxy.pyなしで実際に外部サイトにアクセス：
+
+```bash
+uv run python investigation/playwright/test_10_firefox_extra_headers_real_proxy.py
+```
+
+**結果**:
+```
+✅ ステータス: 200
+✅ URL: https://example.com/
+✅ タイトル: Example Domain
+🎉 成功: proxy.pyなしでFirefoxから外部サイトにアクセスできました！
+```
+
+#### 4. `test_11_mcp_integration_check.py` - MCP統合チェック
+
+MCP設定の最終確認：
+
+```bash
+uv run python investigation/playwright/test_11_mcp_integration_check.py
+```
+
+**結果**:
+```
+✅ 成功: 設定ファイルの生成
+✅ 成功: 起動コマンドの確認
+🎉 MCP統合チェックが成功しました！
+```
+
+### 検証済みの動作
+
+- ✅ 実際のHTTPS_PROXY環境変数から認証情報を抽出
+- ✅ extraHTTPHeadersでProxy-Authorizationヘッダーを設定
+- ✅ proxy.pyなしで外部サイト（example.com）にアクセス成功
+- ✅ MCP設定が正しく生成される
+- ✅ すべての既存設定が保持される
 
 ## 📁 ファイル構成
 
 ```
 .mcp/
-├── start_playwright_mcp_firefox.py  # ラッパースクリプト
-├── playwright-firefox-config.json   # ベース設定
-└── .mcp.json                        # MCP設定
+├── start_playwright_mcp_firefox.py  # ラッパースクリプト（環境変数から認証情報抽出）
+├── playwright-firefox-config.json   # ベース設定（Firefox用）
+└── .mcp.json                        # MCP設定（ラッパースクリプトを起動）
 
 investigation/playwright/
-├── test_07_extra_http_headers.py          # Playwrightでの動作確認
-├── test_08_firefox_mcp_no_proxy.py        # ラッパースクリプトのテスト
-└── FIREFOX_MCP_NO_PROXY_IMPLEMENTATION.md # このドキュメント
+├── test_07_extra_http_headers.py                # Playwrightでの動作確認
+├── test_08_firefox_mcp_no_proxy.py              # ラッパースクリプトのユニットテスト
+├── test_09_verify_wrapper_with_real_proxy.py    # 実際のプロキシでの検証
+├── test_10_firefox_extra_headers_real_proxy.py  # Firefoxでの実際のアクセステスト
+├── test_11_mcp_integration_check.py             # MCP統合チェック
+└── FIREFOX_MCP_NO_PROXY_IMPLEMENTATION.md       # このドキュメント
 ```
 
 ## 🚀 使い方
