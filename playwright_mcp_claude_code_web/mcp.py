@@ -73,6 +73,16 @@ def check_npm_package_installed(package: str) -> bool:
     return result and package in result.stdout
 
 
+def check_proxy_installed() -> bool:
+    """proxy.pyがインストールされているかチェック"""
+    result = run_command(
+        ["uv", "run", "proxy", "--version"],
+        check=False,
+        capture_output=True
+    )
+    return result and result.returncode == 0
+
+
 def setup_certutil():
     """certutilのインストール確認"""
     log("certutilのインストール状況を確認中...")
@@ -98,6 +108,26 @@ def setup_playwright_mcp():
     log("@playwright/mcpをインストール中... (数分かかる場合があります)", "WARN")
     run_command(["npm", "install", "-g", "@playwright/mcp"])
     log("@playwright/mcpをインストールしました")
+
+
+def setup_proxy_py():
+    """proxy.pyのインストール確認"""
+    log("proxy.pyのインストール状況を確認中...")
+
+    # uv run proxy --version で確認
+    result = run_command(
+        ["uv", "run", "proxy", "--version"],
+        check=False,
+        capture_output=True
+    )
+
+    if result and result.returncode == 0:
+        log("proxy.pyは既にインストールされています")
+        return
+
+    log("proxy.pyをインストール中...", "WARN")
+    run_command(["uv", "pip", "install", "proxy.py"])
+    log("proxy.pyをインストールしました")
 
 
 def setup_firefox():
@@ -270,6 +300,7 @@ def run_setup():
     try:
         setup_certutil()
         setup_playwright_mcp()
+        setup_proxy_py()
         setup_firefox()
         setup_firefox_profile()
         import_ca_certificates()
@@ -291,6 +322,7 @@ def check_setup_completed() -> bool:
     checks = [
         ("certutil", lambda: check_command_exists("certutil")),
         ("@playwright/mcp", lambda: check_npm_package_installed("@playwright/mcp")),
+        ("proxy.py", lambda: check_proxy_installed()),
         ("Firefox", lambda: Path("/home/user/.cache/ms-playwright/firefox-1496").exists()),
         ("Firefoxプロファイル", lambda: Path("/home/user/firefox-profile/cert9.db").exists()),
         ("MCP設定ファイル", lambda: (Path(__file__).parent / "playwright-firefox-config.json").exists()),

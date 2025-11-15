@@ -36,10 +36,11 @@ MCPサーバーは初回起動時に以下を自動的にセットアップし�
 
 1. certutil のインストール
 2. @playwright/mcp のインストール
-3. Firefox (build v1496) のインストール
-4. Firefoxプロファイルの作成
-5. CA証明書のインポート
-6. proxy.py の起動
+3. proxy.py のインストール（uv pip install proxy.py）
+4. Firefox (build v1496) のインストール
+5. Firefoxプロファイルの作成
+6. CA証明書のインポート
+7. proxy.py の起動
 
 **注意:**
 - 初回起動時は30秒以上かかる場合があります
@@ -50,9 +51,10 @@ MCPサーバーは初回起動時に以下を自動的にセットアップし�
 
 `mcp.py` は Python 標準ライブラリのみを使用します（外部パッケージ不要）。
 
-ただし、実行環境には以下がインストールされている必要があります：
-- `proxy.py` コマンド（別プロセスとして起動される）
-- `node` および `@playwright/mcp` （Firefox 自動化のため）
+実行環境には以下のコンポーネントが必要ですが、**初回起動時に自動的にインストールされます**：
+- `proxy.py` - JWTプロキシへの接続に使用（`uv pip install proxy.py` で自動インストール）
+- `@playwright/mcp` - Playwright MCPサーバー（`npm install -g` で自動インストール）
+- `node` - Node.jsランタイム（Claude Code Web環境に標準装備）
 
 ### MCP Playwright ツールの利用
 
