@@ -71,8 +71,10 @@ uv run python your_script.py
 
 ### 3. セットアップスクリプト
 
-`.claude/claude_code_web_setup.sh` にも設定を追加済みです。
+`.claude/claude_code_web_setup.sh` はFirefox用のHOMEディレクトリを作成します。
 SessionStartフックで自動的に実行されます。
+
+**注意**: セットアップスクリプトではHOME環境変数は変更しません。HOMEの設定は各使用パターンで個別に行います。
 
 ## 環境変数の説明
 
@@ -87,7 +89,9 @@ SessionStartフックで自動的に実行されます。
 ### MCP経由のインストール
 
 MCPサーバーは `.mcp.json` の設定に従って自動的にセットアップされます。
-追加のインストール作業は不要です。
+
+**⚠️ 注意**: 2025年11月時点で `@playwright/mcp` にブラウザ検出の問題があります。
+MCPサーバー経由での動作は現在調査中です。安定した動作には、Pythonから直接Playwrightを使用することを推奨します。
 
 ### 手動インストール
 

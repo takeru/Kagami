@@ -7,7 +7,8 @@
         "uv run proxy --hostname 127.0.0.1 --port 18911 --plugins proxy.plugin.proxy_pool.ProxyPoolPlugin --proxy-pool \"$HTTPS_PROXY\" >/dev/null 2>&1 & PROXY_PID=$!; trap \"kill $PROXY_PID 2>/dev/null\" EXIT; sleep 2; npx @playwright/mcp@latest --config .mcp/playwright-firefox-config.json --browser firefox --proxy-server http://127.0.0.1:18911"
       ],
       "env": {
-        "HOME": "/home/user/Kagami/.mcp/firefox_home"
+        "HOME": "/home/user/Kagami/.mcp/firefox_home",
+        "PLAYWRIGHT_BROWSERS_PATH": "/root/.cache/ms-playwright"
       }
     }
   }

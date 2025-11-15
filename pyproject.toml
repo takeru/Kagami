@@ -10,6 +10,7 @@ dependencies = [
     "httpx[http2]>=0.27.0",  # HTTP/2クライアント（h2パッケージ込み）
     "selenium>=4.0.0",  # ブラウザ自動化（Playwrightの代替）
     "webdriver-manager>=4.0.0",  # ChromeDriverの自動管理
+    "mcp>=1.0.0",  # MCP クライアントライブラリ
 ]
 
 [project.optional-dependencies]
