@@ -1,4 +1,5 @@
 {
+  "userDataDir": "/home/user/firefox-profile",
   "launchOptions": {
     "headless": true,
     "firefoxUserPrefs": {
@@ -6,7 +7,7 @@
       "network.proxy.allow_hijacking_localhost": true,
       "network.stricttransportsecurity.preloadlist": false,
       "security.cert_pinning.enforcement_level": 0,
-      "security.enterprise_roots.enabled": true,
+      "security.enterprise_roots.enabled": false,
       "security.ssl.errorReporting.enabled": false,
       "browser.xul.error_pages.expert_bad_cert": true,
       "media.navigator.streams.fake": true,

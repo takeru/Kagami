@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 """
-Playwright MCP サンプルコード - Yahoo! JAPANトピック取得
+Playwright MCP - Yahoo! JAPANニュースのトピック取得
 
-通信フロー:
-  Python MCP Client → playwright-mcp (Firefox) → proxy.py → JWT認証Proxy → Yahoo! JAPAN
-
-このサンプルは、CA証明書をインポートしたFirefoxプロファイルを使用して、
-証明書エラーなしでYahoo! JAPANにアクセスし、トピックを取得します。
+Yahoo! JAPANのトップページから最新ニュースのトピックを取得します。
 """
 import asyncio
 import os
@@ -21,15 +17,12 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
-async def get_yahoo_topics_via_mcp():
+async def get_yahoo_news_via_mcp():
     """
-    playwright-mcp経由でYahoo! JAPANのトピックを取得
-
-    セットアップ:
-        ./playwright_mcp_claude_code_web/setup.sh を事前に実行してください
+    playwright-mcp経由でYahoo! JAPANのニューストピックを取得
     """
     print("=" * 70)
-    print("Playwright MCP サンプル - Yahoo! JAPANトピック取得")
+    print("Playwright MCP - Yahoo! JAPANニュース取得")
     print("=" * 70)
     print()
 
@@ -110,12 +103,8 @@ async def get_yahoo_topics_via_mcp():
                     print("   ./playwright_mcp_claude_code_web/setup.sh を実行して")
                     print("   CA証明書をインポートしてください")
                     return False
-                elif "### Result" in nav_result and "Error:" in nav_result:
-                    # Playwright MCPが実際のエラーを返した場合
-                    print(f"   ⚠️ エラーが発生: {nav_result[:200]}")
-                    return False
                 else:
-                    print("   ✅ Yahoo! JAPANにアクセス成功（証明書エラーなし）")
+                    print("   ✅ Yahoo! JAPANにアクセス成功")
 
                 # 5. スナップショットを取得
                 print()
@@ -128,53 +117,70 @@ async def get_yahoo_topics_via_mcp():
                 snapshot = result.content[0].text if result.content else ""
                 print(f"   ✅ スナップショット取得完了 ({len(snapshot)} 文字)")
 
-                # 6. トピックを抽出
+                # 6. ニューストピックを抽出
                 print()
-                print("5. トピックを抽出中...")
+                print("5. ニューストピックを抽出中...")
 
-                # リンクとヘッダーを抽出
-                link_pattern = r'link "([^"]+)"'
-                heading_pattern = r'heading "([^"]+)"'
-
-                links = re.findall(link_pattern, snapshot)
+                # heading要素からニュース記事のみを抽出
+                # Yahoo!ニュースのトピックは "heading "...""" パターンで表されている
+                heading_pattern = r'heading "([^"]+)" \[level=1\]'
                 headings = re.findall(heading_pattern, snapshot)
 
                 # フィルタリング
-                topics = []
-                skip_words = [
-                    'ログイン', 'プライバシー', 'ヘルプ', '利用規約',
-                    'cookie', 'yahoo', 'japan', 'メニュー', 'search',
-                    'すべて', 'もっと見る'
+                news_topics = []
+                skip_patterns = [
+                    'Yahoo',
+                    'ニュース',
+                    '主要',
+                    '経済',
+                    'エンタメ',
+                    'スポーツ',
+                    '国内',
+                    '国際',
+                    'IT',
+                    '科学',
+                    '地域',
+                    'ビジネス',
+                    '社会的な取り組み',
+                    'LINE',
+                    'おすすめ',
+                    '検索',
+                    'お知らせ',
+                    '主なサービス',
                 ]
 
-                for text in links + headings:
-                    # 長さチェック
-                    if 5 < len(text) < 100:
-                        # スキップワードチェック
-                        if not any(skip.lower() in text.lower() for skip in skip_words):
-                            topics.append(text)
+                for text in headings:
+                    # 長さチェック（ニュースのヘッドラインは通常10文字以上）
+                    if len(text) >= 10:
+                        # スキップパターンチェック
+                        if not any(skip in text for skip in skip_patterns):
+                            # 「へ遷移する」などのナビゲーション用テキストを除外
+                            if 'へ遷移' not in text and 'で検索' not in text:
+                                news_topics.append(text)
 
                 # ユニークなトピックを抽出
-                unique_topics = list(dict.fromkeys(topics))[:30]
+                unique_news = list(dict.fromkeys(news_topics))[:20]
 
                 # 7. 結果を表示
                 print()
                 print("=" * 70)
-                print("📰 Yahoo! JAPANのトピック")
+                print("📰 Yahoo! JAPANのニューストピック")
                 print("=" * 70)
 
-                if unique_topics:
-                    for idx, topic in enumerate(unique_topics, 1):
+                if unique_news:
+                    for idx, topic in enumerate(unique_news, 1):
                         print(f"{idx:2d}. {topic}")
                     print()
-                    print(f"✅ {len(unique_topics)} 件のトピックを取得しました")
+                    print(f"✅ {len(unique_news)} 件のニューストピックを取得しました")
                 else:
-                    print("⚠️ トピックを抽出できませんでした")
+                    print("⚠️ ニューストピックを抽出できませんでした")
                     print()
-                    print("デバッグ情報（スナップショットの一部）:")
-                    print("-" * 70)
-                    print(snapshot[:1000])
-                    print("-" * 70)
+                    print("デバッグ情報:")
+                    print(f"  取得したheading要素数: {len(headings)}")
+                    if headings:
+                        print("  最初の10件:")
+                        for idx, h in enumerate(headings[:10], 1):
+                            print(f"    {idx}. {h}")
 
                 # 8. ブラウザを閉じる
                 print()
@@ -183,7 +189,7 @@ async def get_yahoo_topics_via_mcp():
                 print("   ✅ ブラウザを閉じました")
 
                 # 9. 成功メッセージ
-                if unique_topics:
+                if unique_news:
                     print()
                     print("=" * 70)
                     print("🎉 成功！")
@@ -221,24 +227,8 @@ async def get_yahoo_topics_via_mcp():
 
 async def main():
     """メイン関数"""
-    print()
-    print("=" * 70)
-    print("Playwright MCP サンプルコード")
-    print("=" * 70)
-    print()
-    print("このサンプルでは、以下を実行します:")
-    print("  1. proxy.pyを起動（JWT認証処理）")
-    print("  2. playwright-mcpサーバーに接続")
-    print("  3. CA証明書インポート済みFirefoxでYahoo! JAPANにアクセス")
-    print("  4. トピックを抽出して表示")
-    print()
-    print("前提条件:")
-    print("  - ./playwright_mcp_claude_code_web/setup.sh を実行済み")
-    print("  - CA証明書がFirefoxプロファイルにインポート済み")
-    print()
-
     try:
-        success = await get_yahoo_topics_via_mcp()
+        success = await get_yahoo_news_via_mcp()
         return success
     except Exception as e:
         print(f"\n❌ エラー: {e}")
