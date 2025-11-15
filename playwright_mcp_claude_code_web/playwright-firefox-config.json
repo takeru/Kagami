@@ -1,0 +1,25 @@
+{
+  "launchOptions": {
+    "headless": true,
+    "firefoxUserPrefs": {
+      "privacy.trackingprotection.enabled": false,
+      "network.proxy.allow_hijacking_localhost": true,
+      "network.stricttransportsecurity.preloadlist": false,
+      "security.cert_pinning.enforcement_level": 0,
+      "security.enterprise_roots.enabled": false,
+      "security.ssl.errorReporting.enabled": false,
+      "browser.xul.error_pages.expert_bad_cert": true,
+      "media.navigator.streams.fake": true,
+      "security.insecure_connection_text.enabled": false,
+      "security.insecure_connection_text.pbmode.enabled": false,
+      "security.mixed_content.block_active_content": false,
+      "security.mixed_content.block_display_content": false,
+      "security.OCSP.enabled": 0
+    },
+    "acceptDownloads": false
+  },
+  "contextOptions": {
+    "ignoreHTTPSErrors": true,
+    "bypassCSP": true
+  }
+}
