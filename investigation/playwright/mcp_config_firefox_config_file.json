@@ -1,0 +1,12 @@
+{
+  "browser": {
+    "executablePath": "/root/.cache/ms-playwright/firefox-1495/firefox/firefox"
+  },
+  "launchOptions": {
+    "headless": true,
+    "firefoxUserPrefs": {
+      "privacy.trackingprotection.enabled": false,
+      "network.proxy.allow_hijacking_localhost": true
+    }
+  }
+}

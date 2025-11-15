@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "firefox",
+        "--executable-path",
+        "/root/.cache/ms-playwright/firefox-1495/firefox/firefox"
+      ]
+    }
+  }
+}
