@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = [
-#   "playwright>=1.56.0",
-#   "proxy.py>=2.4.0",
-#   "httpx[http2]>=0.27.0",
-#   "mcp>=1.21.1",
-# ]
 # ///
 """
 Claude Code用 Playwright MCP サーバー起動スクリプト
