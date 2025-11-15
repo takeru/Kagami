@@ -142,6 +142,7 @@ cat > "$CONFIG_FILE" << 'EOF'
 {
   "launchOptions": {
     "headless": true,
+    "args": ["-profile", "/home/user/firefox-profile"],
     "firefoxUserPrefs": {
       "privacy.trackingprotection.enabled": false,
       "network.proxy.allow_hijacking_localhost": true,
