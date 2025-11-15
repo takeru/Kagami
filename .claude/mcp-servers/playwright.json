@@ -1,0 +1,9 @@
+{
+  "command": "python3",
+  "args": [
+    ".claude/mcp-servers/playwright_wrapper.py"
+  ],
+  "env": {
+    "HOME": "/home/user"
+  }
+}
