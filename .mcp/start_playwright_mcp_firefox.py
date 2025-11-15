@@ -95,10 +95,10 @@ def main():
     temp_config = create_config_with_auth(base_config, https_proxy)
 
     try:
-        # playwright-mcpを起動
+        # playwright-mcpを起動（グローバルインストール版を使用）
         cmd = [
-            'npx',
-            '@playwright/mcp@latest',
+            'node',
+            '/opt/node22/lib/node_modules/@playwright/mcp/cli.js',
             '--config', temp_config,
             '--browser', 'firefox'
         ]
