@@ -49,6 +49,16 @@ else
 fi
 fi # if false
 
+log "setup Firefox HOME directory for Playwright..."
+FIREFOX_HOME="/home/user/Kagami/.mcp/firefox_home"
+mkdir -p "$FIREFOX_HOME"
+export HOME="$FIREFOX_HOME"
+log "HOME environment variable set to $HOME"
+
+# Use existing Playwright browser installation
+export PLAYWRIGHT_BROWSERS_PATH="/root/.cache/ms-playwright"
+log "PLAYWRIGHT_BROWSERS_PATH set to $PLAYWRIGHT_BROWSERS_PATH"
+
 log "setup .venv..."
 uv sync --dev
 
