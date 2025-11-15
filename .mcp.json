@@ -5,10 +5,10 @@
       "args": [
         "run",
         "python",
-        ".mcp/start_playwright_mcp_firefox.py"
+        "playwright_mcp_claude_code_web/mcp.py"
       ],
       "env": {
-        "HOME": "/home/user/Kagami/.mcp/firefox_home"
+        "HOME": "/home/user"
       }
     }
   }
