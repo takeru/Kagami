@@ -5,6 +5,7 @@ description = "Playwright MCP server for Claude Code Web with JWT proxy support"
 requires-python = ">=3.11"
 dependencies = [
     "PyGithub>=2.1.1",
+    "proxy.py>=2.4.10",
 ]
 
 [project.optional-dependencies]
