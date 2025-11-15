@@ -70,61 +70,6 @@ log "Install Playwright system dependencies..."
 # uv run playwright install-deps chromium || log "Warning: Some system dependencies could not be installed, but continuing"
 uv run playwright install-deps firefox || log "Warning: Some Firefox dependencies could not be installed, but continuing"
 
-log "Setup Playwright MCP for Claude Code..."
-
-# certutilのインストール確認
-log "Check certutil installation..."
-if ! command -v certutil &> /dev/null; then
-    log "Installing certutil (libnss3-tools)..."
-    apt-get update -qq || log "Warning: apt-get update failed"
-    apt-get install -y libnss3-tools > /dev/null 2>&1 || log "Warning: certutil installation failed"
-fi
-
-# @playwright/mcpのグローバルインストール
-log "Install @playwright/mcp globally..."
-if npm list -g @playwright/mcp 2>&1 | grep -q @playwright/mcp; then
-    log "@playwright/mcp is already installed"
-else
-    npm install -g @playwright/mcp || log "Warning: @playwright/mcp installation failed"
-fi
-
-# Firefoxプロファイルの作成
-PROFILE_DIR="/home/user/firefox-profile"
-log "Create Firefox profile at $PROFILE_DIR..."
-if [ -d "$PROFILE_DIR" ] && [ -f "$PROFILE_DIR/cert9.db" ]; then
-    log "Firefox profile already exists"
-else
-    mkdir -p "$PROFILE_DIR"
-    certutil -N -d sql:"$PROFILE_DIR" --empty-password || log "Warning: Firefox profile creation failed"
-fi
-
-# CA証明書のインポート
-STAGING_CERT="/usr/local/share/ca-certificates/swp-ca-staging.crt"
-PRODUCTION_CERT="/usr/local/share/ca-certificates/swp-ca-production.crt"
-
-log "Import CA certificates..."
-if [ -f "$STAGING_CERT" ]; then
-    if certutil -L -d sql:"$PROFILE_DIR" -n "Anthropic TLS Inspection CA" &> /dev/null; then
-        log "Staging CA certificate already imported"
-    else
-        certutil -A -n "Anthropic TLS Inspection CA" -t "C,," -i "$STAGING_CERT" -d sql:"$PROFILE_DIR" || log "Warning: Staging CA import failed"
-    fi
-else
-    log "Warning: Staging CA certificate not found at $STAGING_CERT"
-fi
-
-if [ -f "$PRODUCTION_CERT" ]; then
-    if certutil -L -d sql:"$PROFILE_DIR" -n "Anthropic TLS Inspection CA Production" &> /dev/null; then
-        log "Production CA certificate already imported"
-    else
-        certutil -A -n "Anthropic TLS Inspection CA Production" -t "C,," -i "$PRODUCTION_CERT" -d sql:"$PROFILE_DIR" || log "Warning: Production CA import failed"
-    fi
-else
-    log "Warning: Production CA certificate not found at $PRODUCTION_CERT"
-fi
-
-log "Playwright MCP setup completed"
-
 # Restore stdout and print summary for Claude
 exec 1>&3
 
@@ -141,13 +86,3 @@ echo "Installed components:"
 echo "  ✓ PyGithub - GitHub API client"
 echo "  ✓ Playwright - Browser automation"
 echo "  ✓ Firefox browser"
-echo "  ✓ @playwright/mcp - Playwright MCP server"
-echo "  ✓ Firefox profile with CA certificates"
-echo ""
-echo "Playwright MCP is ready to use:"
-echo "  - Use mcp__playwright__* tools in Claude Code"
-echo "  - Firefox with proxy support enabled"
-echo "  - CA certificates imported for TLS inspection"
-echo ""
-echo "Example Python usage:"
-echo "  uv run python playwright_mcp_claude_code_web/get_yahoo_news.py"
