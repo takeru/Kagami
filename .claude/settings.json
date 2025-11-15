@@ -7,6 +7,11 @@
             "type": "command",
             "command": "./.claude/claude_code_web_setup.sh",
             "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "./playwright_mcp_claude_code_web/setup.sh",
+            "timeout": 600
           }
         ]
       }
