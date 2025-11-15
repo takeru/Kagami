@@ -1,16 +1,13 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "uv",
+      "command": "python3",
       "args": [
-        "run",
-        "python",
         "playwright_mcp_claude_code_web/mcp.py"
       ],
       "env": {
         "HOME": "/home/user"
-      },
-      "timeout": 180000
+      }
     }
   }
 }

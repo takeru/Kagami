@@ -28,25 +28,7 @@ uv run python src/package/path/to/script.py
 uv run pytest tests
 ```
 
-# Github操作
-
-PyGithubを使用してGithub APIを操作することができます。
-
-https://pygithub.readthedocs.io/en/stable/examples/PullRequest.html
-https://pygithub.readthedocs.io/en/stable/examples/Issue.html
-
-```python
-import os
-from github import Github
-from github.PullRequest import PullRequest
-from github.Issue import Issue
-
-g = Github(os.getenv("GITHUB_TOKEN"))
-repo = g.get_repo("user/repo")
-
-issues = repo.get_issues(state="open")
-issue = issues.get(number=123)
-
-pulls = repo.get_pulls(state="open")
-pr = repo.get_pull(number=456)
+**PEP 723対応スクリプト:**
+```bash
+uv run script.py  # script.pyにPEP 723メタデータがある場合
 ```

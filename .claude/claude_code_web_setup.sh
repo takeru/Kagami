@@ -55,21 +55,6 @@ uv sync --dev
 log "Verify PyGithub installation..."
 uv run python -c "import github; print('✓ PyGithub installed')"
 
-log "Verify Playwright installation..."
-uv run python -c "import playwright; print('✓ Playwright installed')"
-
-# Chromiumは使用しないため無効化
-# log "Install Playwright Chromium browser..."
-# uv run playwright install chromium
-
-log "Install Playwright Firefox browser..."
-uv run playwright install firefox
-
-log "Install Playwright system dependencies..."
-# エラーが出ても続行（権限の問題など）
-# uv run playwright install-deps chromium || log "Warning: Some system dependencies could not be installed, but continuing"
-uv run playwright install-deps firefox || log "Warning: Some Firefox dependencies could not be installed, but continuing"
-
 # Restore stdout and print summary for Claude
 exec 1>&3
 
@@ -84,5 +69,3 @@ echo "  uv run ruff format src/"
 echo ""
 echo "Installed components:"
 echo "  ✓ PyGithub - GitHub API client"
-echo "  ✓ Playwright - Browser automation"
-echo "  ✓ Firefox browser"

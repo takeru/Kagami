@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Claude Code用 Playwright MCP サーバー起動スクリプト
 
