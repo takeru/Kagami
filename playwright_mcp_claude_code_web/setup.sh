@@ -330,3 +330,70 @@ echo "  - proxy.pyはJWT認証を処理するために必須です"
 echo "  - CA証明書はTLS Inspectionの証明書エラーを回避します"
 echo "  - 両方が揃って初めて正常にアクセスできます"
 echo ""
+
+# ステップ8: Claude Code設定を更新
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "ステップ8: Claude Code設定にPlaywright MCPを登録"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+CLAUDE_CONFIG="/root/.claude.json"
+
+if [ -f "$CLAUDE_CONFIG" ]; then
+    echo -e "${YELLOW}Claude Code設定を更新中...${NC}"
+
+    # Pythonで/root/.claude.jsonを編集
+    python3 << 'PYTHON_EOF'
+import json
+import sys
+
+config_path = "/root/.claude.json"
+project_path = "/home/user/Kagami"
+
+try:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+
+    # プロジェクト設定が存在することを確認
+    if 'projects' not in config:
+        config['projects'] = {}
+
+    if project_path not in config['projects']:
+        config['projects'][project_path] = {}
+
+    project_config = config['projects'][project_path]
+
+    # enabledMcpjsonServersが存在しない場合は作成
+    if 'enabledMcpjsonServers' not in project_config:
+        project_config['enabledMcpjsonServers'] = []
+
+    # playwrightが既に含まれているかチェック
+    if 'playwright' not in project_config['enabledMcpjsonServers']:
+        project_config['enabledMcpjsonServers'].append('playwright')
+        print("✓ enabledMcpjsonServersにplaywrightを追加しました", file=sys.stderr)
+    else:
+        print("✓ playwrightは既に登録されています", file=sys.stderr)
+
+    # 設定を保存
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    print("✓ Claude Code設定を更新しました", file=sys.stderr)
+
+except Exception as e:
+    print(f"⚠️ 設定の更新に失敗しました: {e}", file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Claude Code設定を更新しました${NC}"
+        echo -e "${GREEN}✓ Playwright MCPが自動的に有効化されます${NC}"
+    else
+        echo -e "${YELLOW}⚠️ Claude Code設定の更新に失敗しました${NC}"
+        echo -e "${YELLOW}   手動で設定してください${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠️ Claude Code設定ファイルが見つかりません: $CLAUDE_CONFIG${NC}"
+    echo -e "${YELLOW}   Claude Codeの初回起動後に自動設定されます${NC}"
+fi
+
+echo ""
