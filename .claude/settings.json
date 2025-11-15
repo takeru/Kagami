@@ -17,5 +17,10 @@
       }
     ]
   },
-  "enabledMcpjsonServers": ["playwright"]
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "mcp__playwright"
+    ]
+  }
 }
