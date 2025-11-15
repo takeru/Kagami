@@ -107,11 +107,17 @@ else
     echo -e "${GREEN}✓ Firefox build v1496をインストールしました${NC}"
 fi
 
-# ステップ7: システム証明書ストアの更新
+# ステップ7: システム証明書ストアの更新（オプション）
 echo ""
-echo "ステップ7: システム証明書ストアの更新..."
+echo "ステップ7: システム証明書ストアの更新（オプション）..."
+echo -e "${YELLOW}注: Firefoxのためには不要です（curl等のために実行）${NC}"
 update-ca-certificates --fresh > /dev/null 2>&1
 echo -e "${GREEN}✓ システム証明書ストアを更新しました${NC}"
+echo ""
+echo "補足:"
+echo "  - Firefoxは独自の証明書ストア（cert9.db）を使用"
+echo "  - システム証明書ストアはcurl、wget等のために更新"
+echo ""
 
 # 完了
 echo ""

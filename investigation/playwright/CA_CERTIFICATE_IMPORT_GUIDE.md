@@ -137,13 +137,23 @@ Anthropic TLS Inspection CA Production                       C,,
 
 ✅ `C,,` が表示されていればインポート成功
 
-### ステップ5: システム証明書ストアの更新（オプション）
+### ステップ5: システム証明書ストアの更新（オプション - Firefoxには不要）
 
 ```bash
 update-ca-certificates --fresh
 ```
 
-これにより、システム全体でCA証明書が認識されます。
+**注意: Firefoxのためには不要です！**
+
+- **Firefox**: 独自の証明書ストア（`cert9.db`）を使用
+- **curl/wget/Python等**: システム証明書ストア（`/etc/ssl/certs`）を使用
+
+このステップは、curl等の他のツールでHTTPSアクセスする場合に有用です。
+
+**検証済み:**
+- `security.enterprise_roots.enabled = false`でもFirefoxは動作
+- システム証明書ストアを見ていないことを確認済み
+- 詳細: [`test_25_verify_system_cert_not_needed.py`](./test_25_verify_system_cert_not_needed.py)
 
 ## 🐍 Playwrightでの使用方法
 
@@ -489,3 +499,46 @@ certutil -L -d sql:/home/user/firefox-profile
 - [ ] test_24が成功する
 
 すべてチェックできれば、証明書エラーなしでHTTPSサイトにアクセスできます！
+
+## 💡 よくある誤解
+
+### Q: `security.enterprise_roots.enabled: true` が必要？
+
+**A: いいえ、不要です。**
+
+検証結果（test_25）:
+- `security.enterprise_roots.enabled = false`でも動作
+- この設定はシステム証明書ストアを見るかどうかの設定
+- Firefoxプロファイル（cert9.db）に直接インポートすれば不要
+
+### Q: `update-ca-certificates` が必要？
+
+**A: Firefoxのためには不要です。curl等のためには必要です。**
+
+| ツール | 証明書ストア | update-ca-certificates必要？ |
+|--------|------------|---------------------------|
+| Firefox | `/home/user/firefox-profile/cert9.db` | ❌ 不要 |
+| curl | `/etc/ssl/certs/ca-certificates.crt` | ✅ 必要 |
+| wget | `/etc/ssl/certs/ca-certificates.crt` | ✅ 必要 |
+| Python requests | `/etc/ssl/certs/ca-certificates.crt` | ✅ 必要 |
+
+### Q: なぜtest_23（proxy.pyなし）は失敗する？
+
+**A: JWT認証が処理されないからです。**
+
+HTTPS_PROXY環境変数:
+```
+http://user:jwt_eyJ0eXAi...@host:port
+```
+
+この複雑なJWT認証形式をFirefoxは直接処理できません。proxy.pyが必須です。
+
+### Q: 両方が必要？
+
+**A: はい、CA証明書インポートとproxy.pyの両方が必要です。**
+
+```
+CA証明書のみ → ❌ JWT認証エラー
+proxy.pyのみ → ❌ 証明書エラー
+両方 → ✅ 成功！
+```
