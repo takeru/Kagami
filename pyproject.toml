@@ -1,0 +1,18 @@
+[project]
+name = "kagami"
+version = "0.1.0"
+description = "Playwright MCP server for Claude Code Web with JWT proxy support"
+requires-python = ">=3.11"
+dependencies = [
+    "PyGithub>=2.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+# スクリプトベースのプロジェクトなので、ビルドバックエンドは不要
