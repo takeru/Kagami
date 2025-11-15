@@ -6,6 +6,16 @@ CLAUDE_CODE_REMOTE 環境変数が設定されているかどうかで、Claude 
 if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "Claude Code Webです"; else echo "Claude Code Webではありません"; fi
 ```
 
+## ログファイル
+
+Claude Code Webの詳細なログは以下の場所に保存されています：
+
+```
+/tmp/claude-code.log
+```
+
+エラーやMCPサーバーの起動状態を確認する場合は、このログファイルを参照してください。
+
 ## 環境セットアップ
 
 pythonの実行をするまえに、.claude/claude_code_web_setup.sh を実行することで、環境セットアップを行うようにしてください。
