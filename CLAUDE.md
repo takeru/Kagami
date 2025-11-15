@@ -26,7 +26,9 @@ Claude Code Webの環境では @CLAUDE_CODE_WEB.md を参照してください�
 
 ## Playwright MCP サーバーについて
 
-このリポジトリには Claude Code Web 用の Playwright MCP サーバー (`playwright_mcp_claude_code_web/mcp.py`) が含まれています。
+**このプロジェクトは Claude Code Web 専用です。**
+
+このリポジトリには Claude Code Web 用の Playwright MCP サーバー (`playwright_mcp_claude_code_web/mcp.py`) が含まれています。Claude Code Web 環境でのみ動作するように設計されています。
 
 ### 自動セットアップ
 

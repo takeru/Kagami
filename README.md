@@ -1,10 +1,12 @@
 # Kagami
 
-Claude Code Web 用の Playwright MCP サーバー。JWT 認証プロキシ経由でブラウザ自動化を実現します。
+**Claude Code Web 専用** の Playwright MCP サーバー。JWT 認証プロキシ経由でブラウザ自動化を実現します。
 
 ## 概要
 
-このプロジェクトは Claude Code Web 環境で Playwright を使用するための MCP (Model Context Protocol) サーバーを提供します。
+このプロジェクトは **Claude Code Web 環境専用** で、Playwright を使用するための MCP (Model Context Protocol) サーバーを提供します。
+
+**重要:** このプロジェクトは Claude Code Web 環境でのみ動作するように設計されています。ローカル環境やその他の環境では動作しません。
 
 **主な特徴:**
 
