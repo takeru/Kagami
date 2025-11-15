@@ -66,6 +66,15 @@ def create_config_with_auth(base_config_path, proxy_url):
     with os.fdopen(temp_fd, 'w') as f:
         json.dump(config, f, indent=2)
 
+    print(f"✓ 設定ファイルを生成しました: {temp_path}", file=sys.stderr)
+    # デバッグ: 設定内容を表示（認証情報の最初の20文字のみ）
+    debug_config = json.loads(json.dumps(config))
+    if 'contextOptions' in debug_config and 'extraHTTPHeaders' in debug_config['contextOptions']:
+        if 'Proxy-Authorization' in debug_config['contextOptions']['extraHTTPHeaders']:
+            auth_val = debug_config['contextOptions']['extraHTTPHeaders']['Proxy-Authorization']
+            debug_config['contextOptions']['extraHTTPHeaders']['Proxy-Authorization'] = auth_val[:30] + '...'
+    print(f"✓ 設定内容:\n{json.dumps(debug_config, indent=2, ensure_ascii=False)}", file=sys.stderr)
+
     return temp_path
 
 
@@ -102,15 +111,15 @@ def main():
 
         print(f"✓ Playwright MCPを起動します: {' '.join(cmd)}", file=sys.stderr)
 
+        # 環境変数を準備（HOMEを含める）
+        env = os.environ.copy()
+
         # MCPサーバーを起動（stdioモード）
-        subprocess.run(cmd, check=False)
+        subprocess.run(cmd, check=False, env=env)
 
     finally:
-        # 一時ファイルを削除
-        try:
-            os.unlink(temp_config)
-        except:
-            pass
+        # デバッグ: 一時ファイルを削除しない（検証のため）
+        print(f"✓ 設定ファイルは削除せずに残します: {temp_config}", file=sys.stderr)
 
 
 if __name__ == '__main__':
