@@ -2,7 +2,7 @@
 """
 テスト15: proxy.py方式でYahoo! Japanのトピックを取得
 
-Python MCP Client -> proxy.py -> playwright-mcp-server (Firefox) -> Internet
+Python MCP Client -> proxy.py -> playwright-mcp-server (Chromium) -> Internet
 """
 import asyncio
 import os
@@ -16,9 +16,16 @@ from mcp.client.stdio import stdio_client
 async def get_yahoo_topics():
     """proxy.py方式でYahoo! Japanのトピックを取得"""
     print("=" * 70)
-    print("Python MCP Client -> proxy.py -> playwright-mcp (Firefox) -> Yahoo! Japan")
+    print("Python MCP Client -> proxy.py -> playwright-mcp (Chromium) -> Yahoo! Japan")
     print("=" * 70)
     print()
+
+    # ロックディレクトリを削除
+    import shutil
+    lock_dir = Path("/root/.cache/ms-playwright/mcp-chromium")
+    if lock_dir.exists():
+        shutil.rmtree(lock_dir)
+        print("   🔧 ロックディレクトリを削除しました")
 
     project_root = Path(__file__).parent.parent.parent
 
@@ -27,12 +34,9 @@ async def get_yahoo_topics():
         command="bash",
         args=[
             "-c",
-            'uv run proxy --hostname 127.0.0.1 --port 18911 --plugins proxy.plugin.proxy_pool.ProxyPoolPlugin --proxy-pool "$HTTPS_PROXY" >/dev/null 2>&1 & PROXY_PID=$!; trap "kill $PROXY_PID 2>/dev/null" EXIT; sleep 2; npx @playwright/mcp@latest --config .mcp/playwright-firefox-config.json --browser firefox --proxy-server http://127.0.0.1:18911'
+            'uv run proxy --hostname 127.0.0.1 --port 18911 --plugins proxy.plugin.proxy_pool.ProxyPoolPlugin --proxy-pool "$HTTPS_PROXY" >/dev/null 2>&1 & PROXY_PID=$!; trap "kill $PROXY_PID 2>/dev/null" EXIT; sleep 2; HTTPS_PROXY=http://127.0.0.1:18911 HTTP_PROXY=http://127.0.0.1:18911 npx @playwright/mcp --browser chromium --isolated'
         ],
-        env={
-            **os.environ,
-            "HOME": str(project_root / ".mcp" / "firefox_home")
-        }
+        env=os.environ
     )
 
     print("1. MCPサーバー（proxy.py方式）に接続中...")
@@ -113,7 +117,7 @@ async def main():
             print("\n🎉 成功！")
             print()
             print("実現できたこと:")
-            print("  ✅ Python MCP Client -> proxy.py -> playwright-mcp -> Firefox -> Internet")
+            print("  ✅ Python MCP Client -> proxy.py -> playwright-mcp -> Chromium -> Internet")
             print("  ✅ JWT認証プロキシ経由でYahoo! Japanにアクセス")
             print("  ✅ トピックリストの取得")
             print()
