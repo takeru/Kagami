@@ -9,8 +9,7 @@
       ],
       "env": {
         "HOME": "/home/user"
-      },
-      "timeout": 180000
+      }
     }
   }
 }
