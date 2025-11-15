@@ -225,3 +225,6 @@ investigation/**/test_*.png
 
 # Playwright MCP Firefox profile
 .mcp/firefox_home/
+
+# Playwright MCP screenshots and artifacts
+.playwright-mcp/
