@@ -21,9 +21,14 @@ pythonの実行をするまえに、.claude/claude_code_web_setup.sh を実行�
 ## pythonの実行（セットアップが完了している場合）
 
 ```bash
-python3 src/package/path/to/script.py
+uv run python src/package/path/to/script.py
 ```
 
 ```bash
-python3 -m pytest tests
+uv run pytest tests
+```
+
+**PEP 723対応スクリプト:**
+```bash
+uv run script.py  # script.pyにPEP 723メタデータがある場合
 ```

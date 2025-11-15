@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "playwright>=1.56.0",
+#   "proxy.py>=2.4.0",
+#   "httpx[http2]>=0.27.0",
+#   "mcp>=1.21.1",
+# ]
+# ///
 """
 Claude Code用 Playwright MCP サーバー起動スクリプト
 
@@ -6,42 +15,14 @@ Claude Code用 Playwright MCP サーバー起動スクリプト
   Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT認証Proxy → Internet
 
 このスクリプトは:
-  1. 初回起動時に必要な依存パッケージを自動インストール
-  2. 初回起動時に必要なセットアップを自動実行
-  3. proxy.pyをバックグラウンドで起動
-  4. playwright-mcpをstdioモードで起動
-  5. 終了時にproxy.pyを停止
+  1. 初回起動時に必要なセットアップを自動実行
+  2. proxy.pyをバックグラウンドで起動
+  3. playwright-mcpをstdioモードで起動
+  4. 終了時にproxy.pyを停止
 """
 import os
 import sys
 import subprocess
-
-# 依存関係の自動インストール
-def ensure_dependencies():
-    """必要な依存パッケージを自動インストール"""
-    required_packages = [
-        "playwright>=1.56.0",
-        "proxy.py>=2.4.0",
-        "httpx[http2]>=0.27.0",
-        "mcp>=1.21.1",
-    ]
-
-    for package in required_packages:
-        package_name = package.split(">=")[0].split("[")[0]
-        try:
-            __import__(package_name.replace("-", "_").replace(".", "_"))
-        except ImportError:
-            print(f"📦 Installing {package}...", file=sys.stderr)
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-q", package],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            print(f"✓ Installed {package}", file=sys.stderr)
-
-ensure_dependencies()
-
 import time
 import atexit
 import signal

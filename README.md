@@ -60,8 +60,9 @@ export HOME="/home/user"
 {
   "mcpServers": {
     "playwright": {
-      "command": "python3",
+      "command": "uv",
       "args": [
+        "run",
         "playwright_mcp_claude_code_web/mcp.py"
       ],
       "env": {
@@ -75,20 +76,22 @@ export HOME="/home/user"
 ### 手動起動（デバッグ用）
 
 ```bash
-python3 playwright_mcp_claude_code_web/mcp.py
+uv run playwright_mcp_claude_code_web/mcp.py
 ```
 
-**注意:** 初回起動時に必要な依存パッケージ（playwright, proxy.py, httpx, mcp）が自動的にインストールされます。
+**注意:** `uv` が [PEP 723](https://peps.python.org/pep-0723/) のインラインメタデータを読み取り、必要な依存パッケージ（playwright, proxy.py, httpx, mcp）を自動的にインストールします。
 
 ## ファイル構成
 
 ```
 .
 ├── playwright_mcp_claude_code_web/
-│   └── mcp.py                          # MCP サーバー本体（依存関係の自動インストール機能付き）
+│   └── mcp.py                          # MCP サーバー本体（PEP 723インラインメタデータ付き）
 ├── .mcp.json                           # MCP サーバー設定
 └── README.md                           # このファイル
 ```
+
+**PEP 723 インラインメタデータ**: `mcp.py` の先頭にスクリプトの依存関係が記述されており、`uv` が自動的に読み取って環境を構築します。
 
 ## トラブルシューティング
 
