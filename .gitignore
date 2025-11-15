@@ -212,5 +212,16 @@ __marimo__/
 /*.html
 *_summary.md
 
+# Investigation/test artifacts
+# Exclude screenshots, HTML, and other browser artifacts from investigation directories
+investigation/**/*.png
+investigation/**/*.jpg
+investigation/**/*.jpeg
+investigation/**/*.gif
+investigation/**/*.html
+investigation/**/*.htm
+investigation/**/screenshot*.png
+investigation/**/test_*.png
+
 # Playwright MCP Firefox profile
 .mcp/firefox_home/
