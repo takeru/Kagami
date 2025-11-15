@@ -24,32 +24,22 @@ if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "Claude Code Webです"; else echo "C
 
 Claude Code Webの環境では @CLAUDE_CODE_WEB.md を参照してください。
 
-## Playwrightのセットアップと動作確認（最短ルート）
+## Playwright MCP サーバーについて
 
-### 1. セットアップ（1分）
-```bash
-uv run python playwright_setup/setup_playwright.py
-```
+このリポジトリには Claude Code Web 用の Playwright MCP サーバー (`playwright_mcp_claude_code_web/mcp.py`) が含まれています。
 
-### 2. 動作確認（1分）
+### 自動セットアップ
 
-**Chromium - プロキシ経由の基本アクセス:**
-```bash
-uv run python playwright_setup/samples/02_with_proxy.py
-```
+MCPサーバーは初回起動時に以下を自動的にセットアップします：
 
-**Chromium - 全機能統合版（推奨）:**
-```bash
-uv run python playwright_setup/samples/05_full_example.py https://example.com
-```
+1. certutil のインストール
+2. @playwright/mcp のインストール
+3. Firefox (build v1496) のインストール
+4. Firefoxプロファイルの作成
+5. CA証明書のインポート
+6. proxy.py の起動
 
-**Firefox - プロキシ経由のアクセス:**
-```bash
-# Firefoxのインストール（初回のみ）
-uv run playwright install firefox
-
-# Firefoxでのアクセス
-uv run python playwright_setup/samples/08_firefox_with_proxy.py
-```
-
-**注意:** 外部サイトへのアクセスには `HTTPS_PROXY` 環境変数が必須です。プロキシなしでは接続エラーになります。
+**注意:**
+- 初回起動時は30秒以上かかる場合があります
+- `HTTPS_PROXY` 環境変数の設定が必須です
+- セットアップは自動的に実行されるため、手動での操作は不要です
