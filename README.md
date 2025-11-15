@@ -60,16 +60,13 @@ export HOME="/home/user"
 {
   "mcpServers": {
     "playwright": {
-      "command": "uv",
+      "command": "python3",
       "args": [
-        "run",
-        "python",
         "playwright_mcp_claude_code_web/mcp.py"
       ],
       "env": {
         "HOME": "/home/user"
-      },
-      "timeout": 180000
+      }
     }
   }
 }
@@ -78,17 +75,18 @@ export HOME="/home/user"
 ### 手動起動（デバッグ用）
 
 ```bash
-uv run python playwright_mcp_claude_code_web/mcp.py
+python3 playwright_mcp_claude_code_web/mcp.py
 ```
+
+**注意:** 初回起動時に必要な依存パッケージ（playwright, proxy.py, httpx, mcp）が自動的にインストールされます。
 
 ## ファイル構成
 
 ```
 .
 ├── playwright_mcp_claude_code_web/
-│   └── mcp.py                          # MCP サーバー本体
+│   └── mcp.py                          # MCP サーバー本体（依存関係の自動インストール機能付き）
 ├── .mcp.json                           # MCP サーバー設定
-├── pyproject.toml                      # Python プロジェクト設定
 └── README.md                           # このファイル
 ```
 
