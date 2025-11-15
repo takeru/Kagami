@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "playwright_mcp_claude_code_web/mcp.py"
+      ],
+      "env": {
+        "HOME": "/home/user"
+      }
+    }
+  }
+}
