@@ -1,125 +1,147 @@
 # Kagami
 
-PyGithub を使用して GitHub API を操作するプロジェクトです。
+Claude Code Web 用の Playwright MCP サーバー。JWT 認証プロキシ経由でブラウザ自動化を実現します。
 
-## 機能
+## 概要
 
-- Issue に自動的にコメントを追加
-- Issue コメントのリアルタイム監視（新しいコメントを検出して表示）
-- ETag ベースの効率的な polling でrate limit を節約
-- GitHub API との統合
-- Claude Code と組み合わせて適切な返信を生成
+このプロジェクトは Claude Code Web 環境で Playwright を使用するための MCP (Model Context Protocol) サーバーを提供します。
+
+**主な特徴:**
+
+- 自動セットアップ機能（初回起動時に必要なコンポーネントを自動インストール）
+- JWT 認証プロキシ経由での外部アクセス
+- Firefox ブラウザによる自動化
+- CA 証明書の自動インポート
+- MCP プロトコル対応
+
+## アーキテクチャ
+
+```
+Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT認証Proxy → Internet
+```
+
+1. **mcp.py**: MCP サーバーのエントリーポイント。初回セットアップと proxy.py の起動を担当
+2. **@playwright/mcp**: Playwright の MCP サーバー実装（Node.js）
+3. **Firefox**: ブラウザエンジン（build v1496）
+4. **proxy.py**: ローカルプロキシサーバー
+5. **JWT認証Proxy**: 外部アクセス用の認証プロキシ
 
 ## セットアップ
 
-1. 依存関係のインストール:
-```bash
-pip install -r requirements.txt
-```
+### 自動セットアップ（推奨）
 
-2. GitHub トークンの設定:
-```bash
-export GITHUB_TOKEN="your_github_token_here"
-```
+初回起動時に自動的に以下がセットアップされます：
 
-GitHub トークンは [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens) から作成できます。
-必要な権限: `repo` (プライベートリポジトリの場合) または `public_repo` (パブリックリポジトリの場合)
+1. certutil のインストール
+2. @playwright/mcp のインストール
+3. Firefox (build v1496) のインストール
+4. Firefox プロファイルの作成
+5. CA 証明書のインポート
+6. 設定ファイルの生成
+
+**注意:**
+- 初回起動時は 30 秒以上かかる場合があります
+- `HTTPS_PROXY` 環境変数の設定が必須です
+
+### 環境変数
+
+```bash
+export HTTPS_PROXY="your_jwt_proxy_url"
+export HOME="/home/user"
+```
 
 ## 使用方法
 
-### Issue にコメントを追加
+### MCP サーバーとして起動
+
+`.mcp.json` に設定を記述することで、Claude Code が自動的に起動します：
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "playwright_mcp_claude_code_web/mcp.py"
+      ],
+      "env": {
+        "HOME": "/home/user"
+      },
+      "timeout": 180000
+    }
+  }
+}
+```
+
+### 手動起動（デバッグ用）
 
 ```bash
-# 現在の git リポジトリの最初のオープン issue にコメントを追加
-python add_issue_comment.py
-
-# 特定のリポジトリの最初のオープン issue にコメントを追加
-python add_issue_comment.py owner/repo
-
-# 特定の issue にコメントを追加
-python add_issue_comment.py owner/repo 123
+uv run python playwright_mcp_claude_code_web/mcp.py
 ```
 
-### 例
+## ファイル構成
+
+```
+.
+├── playwright_mcp_claude_code_web/
+│   └── mcp.py                          # MCP サーバー本体
+├── .mcp.json                           # MCP サーバー設定
+├── pyproject.toml                      # Python プロジェクト設定
+└── README.md                           # このファイル
+```
+
+## トラブルシューティング
+
+### 接続タイムアウト
+
+初回起動時は Firefox のダウンロードとインストールに時間がかかります（30秒以上）。`.mcp.json` の `timeout` を 180000 (3分) に設定することを推奨します。
+
+### プロキシエラー
+
+`HTTPS_PROXY` 環境変数が設定されていることを確認してください：
 
 ```bash
-# takeru/Kagami の issue #1 にコメントを追加
-python add_issue_comment.py takeru/Kagami 1
-
-# takeru/finmlz の最初のオープン issue にコメントを追加
-python add_issue_comment.py takeru/finmlz
+echo $HTTPS_PROXY
 ```
 
-### Issue コメントを監視
+### CA 証明書エラー
 
-新しいコメントを検出して内容を表示します。ETag ベースの polling でrate limit を節約します。
+CA 証明書が正しくインポートされているか確認：
 
 ```bash
-# 基本的な使用方法（30秒間隔でチェック）
-python monitor_issues.py owner/repo issue_number
-
-# チェック間隔を指定（10秒）
-python monitor_issues.py owner/repo issue_number --interval 10
-
-# 詳細情報を表示
-python monitor_issues.py owner/repo issue_number --verbose
+certutil -L -d sql:/home/user/firefox-profile
 ```
 
-#### 監視の例
+以下の証明書が表示されるはずです：
+- Anthropic TLS Inspection CA
+- Anthropic TLS Inspection CA Production
 
-```bash
-# takeru/Kagami の issue #3 を監視
-python monitor_issues.py takeru/Kagami 3
+## 技術詳細
 
-# 10秒間隔で監視
-python monitor_issues.py takeru/Kagami 3 --interval 10
-```
+### 通信フロー
 
-#### 監視の仕組み
+1. Claude Code が MCP プロトコルで `mcp.py` にリクエスト（stdin/stdout）
+2. `mcp.py` が `proxy.py` を起動（localhost:18915）
+3. `mcp.py` が `@playwright/mcp` を起動
+4. Playwright が Firefox を起動（プロキシ設定: localhost:18915）
+5. `proxy.py` が JWT 認証プロキシに転送
+6. 外部サイトにアクセス
 
-- **ETag ベースの polling**: 変更がない場合はrate limit を消費しない
-- **コメント検出**: 新しいコメントを検出すると内容を標準出力に表示
-- **Claudeコメントの自動スキップ**: Claudeが投稿したコメント（マーカー付き）は自動的に無視
-- **マーカーシステム**: コメントに見える署名（🤖）と見えないHTMLマーカーを追加し、後者で判定
-- **Rate limit 監視**: 定期的にrate limit の状態を表示
-- **Ctrl+C で停止**: 安全に監視を停止できる
+### セキュリティ
 
-#### ワークフロー
-
-1. `monitor_issues.py` を起動してissueを監視
-2. 新しいコメントが投稿されると、その内容が標準出力に表示される
-3. Claude Code（あなた）がコメント内容を確認
-4. 適切な返信を考えて `add_issue_comment.py` で投稿
-
-この仕組みにより、Claude が文脈を理解して適切に返信できます。
-
-## PyGithub の基本的な使い方
-
-```python
-import os
-from github import Github, Auth
-
-# 認証（新しい Auth API を使用）
-auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
-g = Github(auth=auth)
-
-# リポジトリの取得
-repo = g.get_repo("owner/repo")
-
-# Issue の取得
-issues = repo.get_issues(state="open")
-issue = repo.get_issue(number=123)
-
-# Pull Request の取得
-pulls = repo.get_pulls(state="open")
-pr = repo.get_pull(number=456)
-
-# コメントの追加
-issue.create_comment("これは自動コメントです！")
-```
+- TLS 検査用の CA 証明書を Firefox プロファイルにインポート
+- すべての HTTPS 通信は JWT 認証プロキシ経由
+- Firefox は専用プロファイルで動作（/home/user/firefox-profile）
 
 ## 参考資料
 
-- [PyGithub Documentation](https://pygithub.readthedocs.io/)
-- [PyGithub Pull Request Examples](https://pygithub.readthedocs.io/en/stable/examples/PullRequest.html)
-- [PyGithub Issue Examples](https://pygithub.readthedocs.io/en/stable/examples/Issue.html)
+- [Playwright Documentation](https://playwright.dev/)
+- [@playwright/mcp GitHub](https://github.com/microsoft/playwright)
+- [MCP Protocol](https://modelcontextprotocol.io/)
+- [proxy.py Documentation](https://github.com/abhinavsingh/proxy.py)
+
+## ライセンス
+
+MIT
