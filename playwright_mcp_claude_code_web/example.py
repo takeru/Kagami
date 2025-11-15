@@ -235,8 +235,6 @@ async def main():
     print("  - ./playwright_mcp_claude_code_web/setup.sh を実行済み")
     print("  - CA証明書がFirefoxプロファイルにインポート済み")
     print()
-    input("Enterキーを押して続行...")
-    print()
 
     try:
         success = await get_yahoo_topics_via_mcp()
