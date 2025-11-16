@@ -316,6 +316,11 @@ def main():
             # Process by method
             response = None
 
+            # Skip notifications (no response needed)
+            if method and method.startswith("notifications/"):
+                log(f"Skipping notification: {method}", "DEBUG")
+                continue
+
             if method == "initialize":
                 response = handle_initialize(request)
 
