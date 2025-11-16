@@ -6,11 +6,9 @@ Complete setup for accessing HTTPS sites without certificate errors using Playwr
 
 This directory contains:
 
-- **mcp.py**: MCP server launch script (**with automatic setup + tools/list_changed workaround**)
+- **mcp.py**: MCP server launch script with automatic setup
 - **setup_minimal.py**: Minimal synchronous setup script
 - **setup_mcp.py**: Full asynchronous setup script
-
-Works around Claude Code's lack of `tools/list_changed` notification support by returning the full tool list immediately on first startup.
 
 ## 📋 Communication Flow
 
@@ -55,7 +53,7 @@ playwright_mcp_claude_code_web/
 ### MCP Server Launch Script (mcp.py)
 
 **Features:**
-- Returns full tool list immediately on startup (bypasses Claude Code's tools/list_changed limitation)
+- Returns full tool list immediately on startup
 - Returns clear error messages for tool calls during setup
 - Runs automatic setup in background
 - Auto-starts proxy.py
@@ -94,7 +92,6 @@ playwright_mcp_claude_code_web/
 - Startup: Synchronous setup fetches real tools from playwright-mcp
 - Before async setup: Returns fetched tool list, tool calls return "setup in progress" error
 - After async setup: Always proxies `tools/list` and tool calls to playwright-mcp
-- No `tools/list_changed` notification needed (Claude Code doesn't support it)
 - No static tool definitions - always real tools from playwright-mcp
 
 ### Setup Scripts
@@ -277,6 +274,16 @@ If problems occur:
 2. Check detailed documentation
 3. Refer to test code
 4. Verify CA certificate import status with `certutil -L -d sql:/home/user/firefox-profile | grep Anthropic`
+
+---
+
+## 📝 Technical Notes
+
+### Why Two-Phase Setup?
+
+This project uses a complex two-phase setup approach (synchronous minimal setup + asynchronous full setup) because Claude Code does not support the `tools/list_changed` MCP notification.
+
+If `tools/list_changed` were supported, the MCP server could simply notify the client when new tools become available after setup completes. However, without this notification support, the server must return the complete tool list immediately on first startup, which necessitates the current two-phase approach.
 
 ---
 
