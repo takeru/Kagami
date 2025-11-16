@@ -323,6 +323,10 @@ def read_jsonrpc_message(stream) -> Optional[Dict[str, Any]]:
         if not line:
             return None
 
+        # Handle both text and binary mode streams
+        if isinstance(line, bytes):
+            line = line.decode('utf-8')
+
         message = json.loads(line)
         return message
     except Exception as e:
@@ -335,7 +339,15 @@ def write_jsonrpc_message(stream, message: Dict[str, Any]):
     try:
         with write_lock:
             json_str = json.dumps(message) + "\n"
-            stream.write(json_str)
+
+            # Handle both text and binary mode streams
+            try:
+                # Try writing as bytes first (for subprocess.PIPE)
+                stream.write(json_str.encode('utf-8'))
+            except TypeError:
+                # If that fails, write as string (for sys.stdout)
+                stream.write(json_str)
+
             stream.flush()
     except Exception as e:
         log(f"Message write error: {e}", "ERROR")
