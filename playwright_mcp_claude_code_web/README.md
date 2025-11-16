@@ -6,17 +6,16 @@ Complete setup for accessing HTTPS sites without certificate errors using Playwr
 
 This directory contains:
 
-- **mcp.py**: MCP server launch script v2.0 (**with automatic setup + tools/list_changed workaround**)
+- **mcp.py**: MCP server launch script (**with automatic setup + tools/list_changed workaround**)
 - **setup_minimal.py**: Minimal synchronous setup script
 - **setup_mcp.py**: Full asynchronous setup script
-- **playwright-firefox-config.json**: Firefox configuration file (auto-generated)
 
-**v2.0 Update:** Works around Claude Code's lack of `tools/list_changed` notification support by returning the full tool list immediately on first startup.
+Works around Claude Code's lack of `tools/list_changed` notification support by returning the full tool list immediately on first startup.
 
 ## 📋 Communication Flow
 
 ```
-Python MCP Client
+MCP Client (Claude Code or other)
   ↓
 playwright-mcp (Firefox + CA certificate)
   ↓
@@ -48,15 +47,14 @@ playwright_mcp_claude_code_web/
 ├── README.md                           # This file
 ├── mcp.py                              # MCP server launch script (with auto-setup)
 ├── setup_minimal.py                    # Minimal synchronous setup script
-├── setup_mcp.py                        # Full asynchronous setup script
-└── playwright-firefox-config.json      # Firefox configuration (auto-generated)
+└── setup_mcp.py                        # Full asynchronous setup script
 ```
 
 ## 🔧 Detailed Usage
 
 ### MCP Server Launch Script (mcp.py)
 
-**Features (v2.0):**
+**Features:**
 - Returns full tool list immediately on startup (bypasses Claude Code's tools/list_changed limitation)
 - Returns clear error messages for tool calls during setup
 - Runs automatic setup in background
@@ -92,7 +90,7 @@ playwright_mcp_claude_code_web/
 6. Start proxy.py
 7. Start playwright-mcp (full functionality)
 
-**v2.0 Behavior:**
+**Behavior:**
 - Startup: Synchronous setup fetches real tools from playwright-mcp
 - Before async setup: Returns fetched tool list, tool calls return "setup in progress" error
 - After async setup: Always proxies `tools/list` and tool calls to playwright-mcp
