@@ -63,14 +63,6 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
 }
 ```
 
-### Manual Launch (For Debugging)
-
-```bash
-python3 playwright_mcp_claude_code_web/mcp.py
-```
-
-**Note:** `mcp.py` uses only standard libraries. However, the `proxy.py` command must be installed in the environment.
-
 ## File Structure
 
 ```
