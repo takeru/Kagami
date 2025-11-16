@@ -1,75 +1,76 @@
-**重要**: ユーザーとの対話は必ず日本語で行うこと
+**IMPORTANT**: All interactions with users must be conducted in Japanese
 
-## Gitコミットに関する注意事項
+## Git Commit Notes
 
-**以下のファイルはコミットしないでください：**
+**Do NOT commit the following files:**
 
-- スクリーンショット（*.png, *.jpg, *.jpeg, *.gif など）
-- ブラウザから取得したHTML（*.html など）
-- テストの一時成果物
+- Screenshots (*.png, *.jpg, *.jpeg, *.gif, etc.)
+- HTML files fetched from browsers (*.html, etc.)
+- Temporary test artifacts
 
-これらのファイルはテストやデバッグの際に生成されますが、リポジトリには不要です。
-.gitignoreに適切なパターンを設定してください。
+These files are generated during testing and debugging, but are not needed in the repository.
+Set appropriate patterns in .gitignore.
 
-**コミットすべきファイル：**
-- ソースコード（*.py, *.js, *.ts など）
-- ドキュメント（*.md）
-- 設定ファイル（*.json, *.yaml など）
-- テストスクリプト
+**Files that should be committed:**
+- Source code (*.py, *.js, *.ts, etc.)
+- Documentation (*.md)
+- Configuration files (*.json, *.yaml, etc.)
+- Test scripts
 
-## Claude Code Webかどうかの判断
+## Determining if Claude Code Web
+
 ```
-if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "Claude Code Webです"; else echo "Claude Code Webではありません"; fi
+if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "This is Claude Code Web"; else echo "This is not Claude Code Web"; fi
 ```
 
-Claude Code Webの環境では @CLAUDE_CODE_WEB.md を参照してください。
+In Claude Code Web environment, please refer to @CLAUDE_CODE_WEB.md.
 
-## Playwright MCP サーバーについて
+## About Playwright MCP Server
 
-**このプロジェクトは Claude Code Web 専用です。**
+**This project is Claude Code Web exclusive.**
 
-このリポジトリには Claude Code Web 用の Playwright MCP サーバー (`playwright_mcp_claude_code_web/mcp.py`) が含まれています。Claude Code Web 環境でのみ動作するように設計されています。
+This repository contains a Playwright MCP server (`playwright_mcp_claude_code_web/mcp.py`) for Claude Code Web. It is designed to work only in Claude Code Web environment.
 
-### 遅延ツール登録（Lazy Tool Registration）
+### Lazy Tool Registration
 
-MCPサーバーは**起動時のタイムアウトを回避**するため、遅延ツール登録方式を採用しています：
+The MCP server uses a lazy tool registration approach to **avoid startup timeout**:
 
-**初回起動時の動作：**
-1. MCPサーバーとして即座に応答（タイムアウト回避）
-2. バックグラウンドでセットアップを実行：
-   - certutil のインストール
-   - @playwright/mcp のインストール
-   - proxy.py のインストール（uv pip install proxy.py）
-   - Firefox (build v1496) のインストール
-   - Firefoxプロファイルの作成
-   - CA証明書のインポート
-3. セットアップ中は「セットアップ中」というステータスツールを返す
-4. セットアップ完了後、playwright-mcpプロセスを起動
-5. 以降のリクエストをplaywright-mcpにプロキシ
+**First startup behavior:**
+1. Responds immediately as MCP server (avoids timeout)
+2. Runs setup in background:
+   - certutil installation
+   - @playwright/mcp installation
+   - proxy.py installation (uv pip install proxy.py)
+   - Firefox (build v1496) installation
+   - Firefox profile creation
+   - CA certificate import
+3. During setup, returns "setup in progress" status tool
+4. After setup completes, starts playwright-mcp process
+5. Proxies subsequent requests to playwright-mcp
 
-**注意:**
-- 初回起動時はセットアップに数分かかります
-- セットアップ中は`mcp_setup_status`ツールのみが利用可能です
-- セットアップ完了後、Playwright MCPの全ツールが利用可能になります
-- `HTTPS_PROXY` 環境変数の設定が必須です
+**Note:**
+- First startup takes several minutes for setup
+- During setup, only `mcp_setup_status` tool is available
+- After setup completes, all Playwright MCP tools become available
+- `HTTPS_PROXY` environment variable is required
 
-### 依存関係
+### Dependencies
 
-`mcp.py` は Python 標準ライブラリのみを使用します（外部パッケージ不要）。
+`mcp.py` uses only Python standard libraries (no external packages required).
 
-実行環境には以下のコンポーネントが必要ですが、**初回起動時に自動的にインストールされます**：
-- `proxy.py` - JWTプロキシへの接続に使用（`uv pip install proxy.py` で自動インストール）
-- `@playwright/mcp` - Playwright MCPサーバー（`npm install -g` で自動インストール）
-- `node` - Node.jsランタイム（Claude Code Web環境に標準装備）
+The execution environment requires the following components, but **they are automatically installed on first startup**:
+- `proxy.py` - Used for connecting to JWT proxy (automatically installed with `uv pip install proxy.py`)
+- `@playwright/mcp` - Playwright MCP server (automatically installed with `npm install -g`)
+- `node` - Node.js runtime (standard equipment in Claude Code Web environment)
 
-### MCP Playwright ツールの利用
+### Using MCP Playwright Tools
 
-Claude Code Web 環境では、`mcp__playwright` がインストールされているはずです。
+In Claude Code Web environment, `mcp__playwright` should be installed.
 
-**利用可能なツール:**
-- `mcp__playwright__browser_navigate` - ブラウザでURLに移動
-- その他のPlaywright MCPツール
+**Available tools:**
+- `mcp__playwright__browser_navigate` - Navigate to URL in browser
+- Other Playwright MCP tools
 
-**注意:**
-- 初回起動時はセットアップに時間がかかるため、すぐには使えないかもしれません
-- セットアップが完了するまで待つ必要があります（30秒以上）
+**Note:**
+- First startup takes time for setup, so it may not be immediately available
+- Need to wait until setup completes (30+ seconds)
