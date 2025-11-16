@@ -3,18 +3,18 @@
 # requires-python = ">=3.11"
 # ///
 """
-Claude Code用 Playwright MCP サーバー起動スクリプト (タイムアウト対策版)
+Playwright MCP Server Launch Script for Claude Code (Timeout Mitigation Version)
 
-通信フロー:
-  Claude Code → mcp.py (MCPラッパー) → playwright-mcp (Firefox) → proxy.py → JWT認証Proxy → Internet
+Communication flow:
+  Claude Code → mcp.py (MCP Wrapper) → playwright-mcp (Firefox) → proxy.py → JWT Auth Proxy → Internet
 
-このスクリプトは:
-  1. 起動時に即座にMCPサーバーとして応答（タイムアウト回避）
-  2. バックグラウンドスレッドでセットアップを実行
-  3. セットアップ完了後、playwright-mcpにリクエストをプロキシ
-  4. 終了時にproxy.pyとplaywright-mcpを停止
+This script:
+  1. Responds immediately as an MCP server on startup (avoiding timeout)
+  2. Runs setup in a background thread
+  3. Proxies requests to playwright-mcp after setup completes
+  4. Stops proxy.py and playwright-mcp on exit
 
-これにより、Claude Code Webの30秒タイムアウトを回避します。
+This avoids the 30-second timeout in Claude Code Web.
 """
 import os
 import sys
@@ -27,7 +27,7 @@ import signal
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-# グローバル変数
+# Global variables
 proxy_process = None
 playwright_mcp_process = None
 setup_completed = False
@@ -35,7 +35,7 @@ setup_error = None
 
 
 def log(message: str, level: str = "INFO"):
-    """ログ出力（stderrに出力）"""
+    """Log output (outputs to stderr)"""
     prefix = {
         "INFO": "✓",
         "WARN": "⚠️",
@@ -45,12 +45,347 @@ def log(message: str, level: str = "INFO"):
     print(f"{prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
 
 
+def run_command(cmd: list[str], check: bool = True, capture_output: bool = False) -> Optional[subprocess.CompletedProcess]:
+    """Execute command"""
+    try:
+        result = subprocess.run(
+            cmd,
+            check=check,
+            capture_output=capture_output,
+            text=True
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        if check:
+            log(f"Command execution error: {' '.join(cmd)}", "ERROR")
+            log(f"Error details: {e.stderr if capture_output else str(e)}", "ERROR")
+            raise
+        return None
+
+
+def check_command_exists(command: str) -> bool:
+    """Check if command exists"""
+    result = run_command(["which", command], check=False, capture_output=True)
+    return result and result.returncode == 0
+
+
+def check_npm_package_installed(package: str) -> bool:
+    """Check if npm package is globally installed"""
+    result = run_command(
+        ["npm", "list", "-g", package],
+        check=False,
+        capture_output=True
+    )
+    return result and package in result.stdout
+
+
+def check_proxy_installed() -> bool:
+    """Check if proxy.py is installed"""
+    result = run_command(
+        ["uv", "run", "proxy", "--version"],
+        check=False,
+        capture_output=True
+    )
+    return result and result.returncode == 0
+
+
+def get_installed_firefox_version() -> Optional[Path]:
+    """Dynamically detect installed Firefox version
+
+    Returns:
+        Path to installed Firefox directory. Returns None if not found.
+        If multiple versions are installed, returns the latest version (highest number).
+    """
+    cache_dir = Path("/home/user/.cache/ms-playwright")
+
+    if not cache_dir.exists():
+        return None
+
+    # Search for firefox-* pattern directories
+    firefox_dirs = list(cache_dir.glob("firefox-*"))
+
+    if not firefox_dirs:
+        return None
+
+    # Sort by version number (prefer latest version)
+    # Extract numeric part like firefox-1496 -> 1496
+    def extract_version(path: Path) -> int:
+        try:
+            return int(path.name.split('-')[1])
+        except (IndexError, ValueError):
+            return 0
+
+    firefox_dirs.sort(key=extract_version, reverse=True)
+    return firefox_dirs[0]
+
+
+def setup_certutil():
+    """Verify certutil installation"""
+    log("Checking certutil installation status...")
+
+    if check_command_exists("certutil"):
+        log("certutil is already installed")
+        return
+
+    log("Installing certutil...", "WARN")
+    run_command(["apt-get", "update", "-qq"])
+    run_command(["apt-get", "install", "-y", "libnss3-tools"])
+    log("certutil installed")
+
+
+def setup_playwright_mcp():
+    """Verify @playwright/mcp installation"""
+    log("Checking @playwright/mcp installation status...")
+
+    if check_npm_package_installed("@playwright/mcp"):
+        log("@playwright/mcp is already installed")
+        return
+
+    log("Installing @playwright/mcp... (may take several minutes)", "WARN")
+    run_command(["npm", "install", "-g", "@playwright/mcp"])
+    log("@playwright/mcp installed")
+
+
+def setup_proxy_py():
+    """Verify proxy.py installation"""
+    log("Checking proxy.py installation status...")
+
+    # Check with uv run proxy --version
+    result = run_command(
+        ["uv", "run", "proxy", "--version"],
+        check=False,
+        capture_output=True
+    )
+
+    if result and result.returncode == 0:
+        log("proxy.py is already installed")
+        return
+
+    log("Installing proxy.py...", "WARN")
+    run_command(["uv", "pip", "install", "proxy.py"])
+    log("proxy.py installed")
+
+
+def setup_firefox():
+    """Install Firefox"""
+    log("Checking Firefox installation status...")
+
+    firefox_build = get_installed_firefox_version()
+
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefox is already installed: {firefox_build} (build v{version})")
+        return
+
+    log("Installing Firefox... (may take several minutes)", "WARN")
+
+    env = os.environ.copy()
+    env["HOME"] = "/home/user"
+
+    run_command([
+        "node",
+        "/opt/node22/lib/node_modules/@playwright/mcp/node_modules/playwright/cli.js",
+        "install",
+        "firefox"
+    ])
+
+    # Check version after installation
+    firefox_build = get_installed_firefox_version()
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefox installed: {firefox_build} (build v{version})")
+    else:
+        log("Firefox installation completed but version could not be verified", "WARN")
+
+
+def setup_firefox_profile():
+    """Create Firefox profile"""
+    log("Checking Firefox profile...")
+
+    profile_dir = Path("/home/user/firefox-profile")
+    cert_db = profile_dir / "cert9.db"
+
+    if profile_dir.exists() and cert_db.exists():
+        log(f"Firefox profile already exists: {profile_dir}")
+        return
+
+    log("Creating Firefox profile...")
+
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    run_command([
+        "certutil",
+        "-N",
+        "-d", f"sql:{profile_dir}",
+        "--empty-password"
+    ])
+
+    log(f"Firefox profile created: {profile_dir}")
+
+
+def import_ca_certificates():
+    """Import JWT authentication proxy CA certificates"""
+    log("Checking CA certificate import status...")
+
+    profile_dir = Path("/home/user/firefox-profile")
+    staging_cert = Path("/usr/local/share/ca-certificates/swp-ca-staging.crt")
+    production_cert = Path("/usr/local/share/ca-certificates/swp-ca-production.crt")
+
+    # Verify certificate files exist
+    if not staging_cert.exists():
+        log(f"Staging CA certificate not found: {staging_cert}", "ERROR")
+        sys.exit(1)
+
+    if not production_cert.exists():
+        log(f"Production CA certificate not found: {production_cert}", "ERROR")
+        sys.exit(1)
+
+    # Import staging CA certificate
+    result = run_command([
+        "certutil",
+        "-L",
+        "-d", f"sql:{profile_dir}",
+        "-n", "Anthropic TLS Inspection CA"
+    ], check=False, capture_output=True)
+
+    if result and result.returncode == 0:
+        log("Staging CA certificate is already imported")
+    else:
+        log("Importing staging CA certificate...")
+        run_command([
+            "certutil",
+            "-A",
+            "-n", "Anthropic TLS Inspection CA",
+            "-t", "C,,",
+            "-i", str(staging_cert),
+            "-d", f"sql:{profile_dir}"
+        ])
+        log("Staging CA certificate imported")
+
+    # Import production CA certificate
+    result = run_command([
+        "certutil",
+        "-L",
+        "-d", f"sql:{profile_dir}",
+        "-n", "Anthropic TLS Inspection CA Production"
+    ], check=False, capture_output=True)
+
+    if result and result.returncode == 0:
+        log("Production CA certificate is already imported")
+    else:
+        log("Importing production CA certificate...")
+        run_command([
+            "certutil",
+            "-A",
+            "-n", "Anthropic TLS Inspection CA Production",
+            "-t", "C,,",
+            "-i", str(production_cert),
+            "-d", f"sql:{profile_dir}"
+        ])
+        log("Production CA certificate imported")
+
+
+def setup_config_file():
+    """Create MCP configuration file"""
+    log("Checking MCP configuration file...")
+
+    script_dir = Path(__file__).parent
+    config_file = script_dir / "playwright-firefox-config.json"
+
+    if config_file.exists():
+        log(f"MCP configuration file already exists: {config_file}")
+        return
+
+    log("Creating MCP configuration file...")
+
+    config = {
+        "browser": {
+            "browserName": "firefox",
+            "userDataDir": "/home/user/firefox-profile",
+            "launchOptions": {
+                "headless": True,
+                "firefoxUserPrefs": {
+                    "privacy.trackingprotection.enabled": False,
+                    "network.proxy.allow_hijacking_localhost": True,
+                    "network.stricttransportsecurity.preloadlist": False,
+                    "security.cert_pinning.enforcement_level": 0,
+                    "security.enterprise_roots.enabled": False,
+                    "security.ssl.errorReporting.enabled": False,
+                    "browser.xul.error_pages.expert_bad_cert": True,
+                    "media.navigator.streams.fake": True,
+                    "security.insecure_connection_text.enabled": False,
+                    "security.insecure_connection_text.pbmode.enabled": False,
+                    "security.mixed_content.block_active_content": False,
+                    "security.mixed_content.block_display_content": False,
+                    "security.OCSP.enabled": 0
+                },
+                "acceptDownloads": False
+            },
+            "contextOptions": {
+                "ignoreHTTPSErrors": True,
+                "bypassCSP": True
+            }
+        }
+    }
+
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=2)
+
+    log(f"MCP configuration file created: {config_file}")
+
+
+def run_setup():
+    """Execute first-time setup"""
+    log("=" * 70)
+    log("Playwright MCP - Starting first-time setup")
+    log("=" * 70)
+
+    try:
+        setup_certutil()
+        setup_playwright_mcp()
+        setup_proxy_py()
+        setup_firefox()
+        setup_firefox_profile()
+        import_ca_certificates()
+        setup_config_file()
+
+        log("=" * 70)
+        log("Setup completed successfully!")
+        log("=" * 70)
+
+    except Exception as e:
+        log(f"Error occurred during setup: {e}", "ERROR")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
+
+
+def check_setup_completed() -> bool:
+    """Check if setup is completed"""
+    checks = [
+        ("certutil", lambda: check_command_exists("certutil")),
+        ("@playwright/mcp", lambda: check_npm_package_installed("@playwright/mcp")),
+        ("proxy.py", lambda: check_proxy_installed()),
+        ("Firefox", lambda: get_installed_firefox_version() is not None),
+        ("Firefox profile", lambda: Path("/home/user/firefox-profile/cert9.db").exists()),
+        ("MCP configuration file", lambda: (Path(__file__).parent / "playwright-firefox-config.json").exists()),
+    ]
+
+    all_ok = True
+    for name, check_func in checks:
+        if not check_func():
+            log(f"{name} is not set up yet", "DEBUG")
+            all_ok = False
+
+    return all_ok
+
+
 def run_setup_script():
-    """セットアップスクリプトを実行（バックグラウンドスレッド）"""
+    """Run setup script (background thread)"""
     global setup_completed, setup_error
 
     try:
-        log("バックグラウンドでセットアップを開始...")
+        log("Starting background setup...")
 
         script_dir = Path(__file__).parent
         setup_script = script_dir / "setup_mcp.py"
@@ -63,29 +398,29 @@ def run_setup_script():
         )
 
         if result.returncode != 0:
-            setup_error = f"セットアップ失敗: {result.stderr}"
+            setup_error = f"Setup failed: {result.stderr}"
             log(setup_error, "ERROR")
             return
 
-        log("セットアップ完了")
+        log("Setup completed")
         setup_completed = True
 
     except Exception as e:
-        setup_error = f"セットアップ中にエラー: {e}"
+        setup_error = f"Error during setup: {e}"
         log(setup_error, "ERROR")
 
 
 def start_proxy():
-    """proxy.pyを起動"""
+    """Start proxy.py"""
     global proxy_process
 
-    # HTTPS_PROXY環境変数を確認
+    # Check HTTPS_PROXY environment variable
     https_proxy = os.environ.get('HTTPS_PROXY', '')
     if not https_proxy:
-        log("HTTPS_PROXY環境変数が設定されていません", "ERROR")
+        log("HTTPS_PROXY environment variable not set", "ERROR")
         return False
 
-    log(f"proxy.pyを起動中...")
+    log(f"Starting proxy.py...")
 
     try:
         proxy_process = subprocess.Popen(
@@ -100,28 +435,28 @@ def start_proxy():
             stderr=subprocess.DEVNULL
         )
 
-        # proxy.pyの起動を待つ
+        # Wait for proxy.py to start
         time.sleep(2)
-        log("proxy.py起動完了 (localhost:18915)")
+        log("proxy.py started successfully (localhost:18915)")
         return True
 
     except Exception as e:
-        log(f"proxy.py起動エラー: {e}", "ERROR")
+        log(f"proxy.py startup error: {e}", "ERROR")
         return False
 
 
 def start_playwright_mcp():
-    """playwright-mcpを起動"""
+    """Start playwright-mcp"""
     global playwright_mcp_process
 
     script_dir = Path(__file__).parent
     config_path = str(script_dir / "playwright-firefox-config.json")
 
     if not os.path.exists(config_path):
-        log(f"設定ファイルが見つかりません: {config_path}", "ERROR")
+        log(f"Configuration file not found: {config_path}", "ERROR")
         return False
 
-    log(f"playwright-mcpを起動中...")
+    log(f"Starting playwright-mcp...")
 
     cmd = [
         'node',
@@ -144,20 +479,20 @@ def start_playwright_mcp():
             bufsize=0
         )
 
-        log("playwright-mcp起動完了")
+        log("playwright-mcp started successfully")
         return True
 
     except Exception as e:
-        log(f"playwright-mcp起動エラー: {e}", "ERROR")
+        log(f"playwright-mcp startup error: {e}", "ERROR")
         return False
 
 
 def stop_processes():
-    """proxy.pyとplaywright-mcpを停止"""
+    """Stop proxy.py and playwright-mcp"""
     global proxy_process, playwright_mcp_process
 
     if playwright_mcp_process:
-        log("playwright-mcpを停止中...")
+        log("Stopping playwright-mcp...")
         try:
             playwright_mcp_process.terminate()
             playwright_mcp_process.wait(timeout=5)
@@ -165,7 +500,7 @@ def stop_processes():
             playwright_mcp_process.kill()
 
     if proxy_process:
-        log("proxy.pyを停止中...")
+        log("Stopping proxy.py...")
         try:
             proxy_process.terminate()
             proxy_process.wait(timeout=5)
@@ -174,7 +509,7 @@ def stop_processes():
 
 
 def read_jsonrpc_message(stream) -> Optional[Dict[str, Any]]:
-    """JSON-RPCメッセージを読み取る"""
+    """Read JSON-RPC message"""
     try:
         line = stream.readline()
         if not line:
@@ -183,22 +518,22 @@ def read_jsonrpc_message(stream) -> Optional[Dict[str, Any]]:
         message = json.loads(line)
         return message
     except Exception as e:
-        log(f"メッセージ読み取りエラー: {e}", "ERROR")
+        log(f"Message read error: {e}", "ERROR")
         return None
 
 
 def write_jsonrpc_message(stream, message: Dict[str, Any]):
-    """JSON-RPCメッセージを書き込む"""
+    """Write JSON-RPC message"""
     try:
         json_str = json.dumps(message) + "\n"
         stream.write(json_str)
         stream.flush()
     except Exception as e:
-        log(f"メッセージ書き込みエラー: {e}", "ERROR")
+        log(f"Message write error: {e}", "ERROR")
 
 
 def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
-    """initializeリクエストを処理"""
+    """Handle initialize request"""
     return {
         "jsonrpc": "2.0",
         "id": request.get("id"),
@@ -216,26 +551,26 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
-    """tools/listリクエストを処理"""
+    """Handle tools/list request"""
     if setup_error:
-        # セットアップエラー時
+        # When setup error occurs
         return {
             "jsonrpc": "2.0",
             "id": request.get("id"),
             "error": {
                 "code": -32603,
-                "message": f"セットアップエラー: {setup_error}"
+                "message": f"Setup error: {setup_error}"
             }
         }
     elif not setup_completed:
-        # セットアップ中
+        # During setup
         return {
             "jsonrpc": "2.0",
             "id": request.get("id"),
             "result": {
                 "tools": [{
                     "name": "playwright_setup_in_progress",
-                    "description": "Playwright MCPサーバーのセットアップ中です。しばらくお待ちください...",
+                    "description": "Playwright MCP server setup is in progress. Please wait...",
                     "inputSchema": {
                         "type": "object",
                         "properties": {}
@@ -244,12 +579,12 @@ def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
     else:
-        # セットアップ完了 - playwright-mcpにプロキシ
-        return None  # プロキシが必要
+        # Setup completed - proxy to playwright-mcp
+        return None  # Requires proxy
 
 
 def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """リクエストをplaywright-mcpにプロキシ"""
+    """Proxy request to playwright-mcp"""
     global playwright_mcp_process
 
     if not playwright_mcp_process:
@@ -258,62 +593,62 @@ def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]
             "id": request.get("id"),
             "error": {
                 "code": -32603,
-                "message": "playwright-mcpが起動していません"
+                "message": "playwright-mcp is not running"
             }
         }
 
     try:
-        # リクエストを送信
+        # Send request
         write_jsonrpc_message(playwright_mcp_process.stdin, request)
 
-        # レスポンスを受信
+        # Receive response
         response = read_jsonrpc_message(playwright_mcp_process.stdout)
         return response
 
     except Exception as e:
-        log(f"プロキシエラー: {e}", "ERROR")
+        log(f"Proxy error: {e}", "ERROR")
         return {
             "jsonrpc": "2.0",
             "id": request.get("id"),
             "error": {
                 "code": -32603,
-                "message": f"プロキシエラー: {e}"
+                "message": f"Proxy error: {e}"
             }
         }
 
 
 def main():
-    """メイン処理"""
+    """Main process"""
     global setup_completed
 
-    # HOME環境変数を設定
+    # Set HOME environment variable
     os.environ['HOME'] = '/home/user'
 
-    # 終了時のクリーンアップを登録
+    # Register cleanup on exit
     atexit.register(stop_processes)
 
     log("=" * 70)
-    log("Playwright MCP Wrapper 起動")
+    log("Playwright MCP Wrapper Starting")
     log("=" * 70)
 
-    # セットアップをバックグラウンドで開始
+    # Start setup in background
     setup_thread = threading.Thread(target=run_setup_script, daemon=True)
     setup_thread.start()
 
-    log("MCPサーバーとして応答を開始します")
+    log("Starting to respond as MCP server")
 
-    # メインループ: JSON-RPCメッセージを処理
+    # Main loop: Process JSON-RPC messages
     try:
         while True:
-            # リクエストを読み取る
+            # Read request
             request = read_jsonrpc_message(sys.stdin)
             if not request:
                 break
 
             method = request.get("method")
-            log(f"リクエスト受信: {method}", "DEBUG")
+            log(f"Received request: {method}", "DEBUG")
 
-            # メソッドに応じて処理
+            # Process by method
             response = None
 
             if method == "initialize":
@@ -322,7 +657,7 @@ def main():
             elif method == "tools/list":
                 response = handle_tools_list(request)
                 if response is None:
-                    # セットアップ完了後、playwright-mcpを起動してプロキシ
+                    # After setup completes, start playwright-mcp and proxy
                     if not playwright_mcp_process:
                         if not start_proxy():
                             response = {
@@ -330,7 +665,7 @@ def main():
                                 "id": request.get("id"),
                                 "error": {
                                     "code": -32603,
-                                    "message": "proxy.pyの起動に失敗しました"
+                                    "message": "Failed to start proxy.py"
                                 }
                             }
                         elif not start_playwright_mcp():
@@ -339,7 +674,7 @@ def main():
                                 "id": request.get("id"),
                                 "error": {
                                     "code": -32603,
-                                    "message": "playwright-mcpの起動に失敗しました"
+                                    "message": "Failed to start playwright-mcp"
                                 }
                             }
 
@@ -347,7 +682,7 @@ def main():
                         response = proxy_to_playwright_mcp(request)
 
             else:
-                # その他のメソッドはplaywright-mcpにプロキシ
+                # Proxy other methods to playwright-mcp
                 if setup_completed and playwright_mcp_process:
                     response = proxy_to_playwright_mcp(request)
                 else:
@@ -356,18 +691,18 @@ def main():
                         "id": request.get("id"),
                         "error": {
                             "code": -32603,
-                            "message": "セットアップ中です。しばらくお待ちください..."
+                            "message": "Setup is in progress. Please wait..."
                         }
                     }
 
-            # レスポンスを送信
+            # Send response
             if response:
                 write_jsonrpc_message(sys.stdout, response)
 
     except KeyboardInterrupt:
-        log("中断されました")
+        log("Interrupted")
     except Exception as e:
-        log(f"エラー: {e}", "ERROR")
+        log(f"Error: {e}", "ERROR")
         import traceback
         traceback.print_exc(file=sys.stderr)
 
