@@ -55,6 +55,14 @@ uv sync --dev
 log "Verify PyGithub installation..."
 uv run python -c "import github; print('✓ PyGithub installed')"
 
+log "Setup Playwright MCP server..."
+uv run python playwright_mcp_claude_code_web/setup_mcp.py
+if [ $? -eq 0 ]; then
+    log "✓ Playwright MCP server setup completed"
+else
+    log "⚠️  Playwright MCP server setup failed (non-critical)"
+fi
+
 # Restore stdout and print summary for Claude
 exec 1>&3
 
@@ -69,3 +77,4 @@ echo "  uv run ruff format src/"
 echo ""
 echo "Installed components:"
 echo "  ✓ PyGithub - GitHub API client"
+echo "  ✓ Playwright MCP server - Browser automation for Claude Code Web"
