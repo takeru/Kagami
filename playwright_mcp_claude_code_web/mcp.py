@@ -507,6 +507,13 @@ def main():
         else:
             log("Failed to fetch tools from playwright-mcp", "WARN")
 
+        # Delete temporary config file (will be recreated by setup_mcp.py)
+        script_dir = Path(__file__).parent
+        temp_config = script_dir / "playwright-firefox-config.json"
+        if temp_config.exists():
+            temp_config.unlink()
+            log("Deleted temporary config file (will be recreated during full setup)")
+
     # Start async setup in background
     log("Starting asynchronous setup in background...")
     setup_thread = threading.Thread(target=run_setup_script, daemon=True)

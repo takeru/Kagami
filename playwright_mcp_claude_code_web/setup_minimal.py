@@ -52,7 +52,7 @@ def create_minimal_config() -> bool:
         script_dir = Path(__file__).parent
         config_path = script_dir / "playwright-firefox-config.json"
 
-        # Minimal config that doesn't require browser
+        # Minimal config (will be deleted and replaced by setup_mcp.py)
         config = {
             "browser": "firefox",
             "headless": True
