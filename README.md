@@ -125,6 +125,8 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
 - All HTTPS traffic goes through JWT authentication proxy
 - Firefox runs with dedicated profile (/home/user/firefox-profile)
 
+**Note:** Claude Code Web environment performs TLS Inspection on all HTTPS communications for security auditing purposes. This project imports the necessary CA certificates to enable secure browsing within this monitored environment.
+
 ## References
 
 - [Playwright Documentation](https://playwright.dev/)
