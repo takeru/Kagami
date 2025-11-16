@@ -120,7 +120,9 @@ playwright_mcp_claude_code_web/
 6. Create MCP configuration file
 
 **v2.0 Behavior:**
-- Tool list is returned immediately (7 tools: navigate, screenshot, click, fill, select, hover, evaluate)
+- Tool list is fetched from playwright-mcp and cached (`.playwright_tools_cache.json`)
+- First startup uses static fallback if cache doesn't exist
+- After setup completes, actual tool list is fetched and cached
 - Tool calls return "setup in progress" error until background setup completes
 - No `tools/list_changed` notification needed (Claude Code doesn't support it)
 

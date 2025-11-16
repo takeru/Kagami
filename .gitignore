@@ -58,3 +58,4 @@ dmypy.json
 # Playwright MCP screenshots and artifacts
 .playwright-mcp/
 playwright_mcp_claude_code_web/playwright-firefox-config.json
+playwright_mcp_claude_code_web/.playwright_tools_cache.json
