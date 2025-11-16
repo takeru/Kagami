@@ -24,7 +24,7 @@ Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT Auth Pr
 
 1. **mcp.py**: MCP server entry point. Responsible for initial setup and launching proxy.py
 2. **@playwright/mcp**: Playwright MCP server implementation (Node.js)
-3. **Firefox**: Browser engine (build v1496)
+3. **Firefox**: Browser engine
 4. **proxy.py**: Local proxy server
 5. **JWT Auth Proxy**: Authentication proxy for external access
 
@@ -36,7 +36,7 @@ The following will be automatically set up on first startup:
 
 1. certutil installation
 2. @playwright/mcp installation
-3. Firefox (build v1496) installation
+3. Firefox installation
 4. Firefox profile creation
 5. CA certificate import
 6. Configuration file generation
