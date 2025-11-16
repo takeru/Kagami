@@ -32,6 +32,7 @@ proxy_process = None
 playwright_mcp_process = None
 setup_completed = False
 setup_error = None
+write_lock = threading.Lock()
 
 
 def log(message: str, level: str = "INFO"):
@@ -69,6 +70,14 @@ def run_setup_script():
 
         log("Setup completed")
         setup_completed = True
+
+        # Send notification to client
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "notifications/tools/list_changed"
+        }
+        write_jsonrpc_message(sys.stdout, notification)
+        log("Sent tools/list_changed notification", "DEBUG")
 
     except Exception as e:
         setup_error = f"Error during setup: {e}"
@@ -188,11 +197,12 @@ def read_jsonrpc_message(stream) -> Optional[Dict[str, Any]]:
 
 
 def write_jsonrpc_message(stream, message: Dict[str, Any]):
-    """Write JSON-RPC message"""
+    """Write JSON-RPC message (thread-safe)"""
     try:
-        json_str = json.dumps(message) + "\n"
-        stream.write(json_str)
-        stream.flush()
+        with write_lock:
+            json_str = json.dumps(message) + "\n"
+            stream.write(json_str)
+            stream.flush()
     except Exception as e:
         log(f"Message write error: {e}", "ERROR")
 
