@@ -68,7 +68,10 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
 ```
 .
 ├── playwright_mcp_claude_code_web/
-│   └── mcp.py                          # MCP server (uses only standard library)
+│   ├── mcp.py                          # MCP server (uses only standard library)
+│   ├── setup_minimal.py                # Minimal synchronous setup
+│   ├── setup_mcp.py                    # Full asynchronous setup
+│   └── README.md                       # Detailed documentation
 ├── .mcp.json                           # MCP server configuration
 └── README.md                           # This file
 ```
