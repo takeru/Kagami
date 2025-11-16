@@ -50,10 +50,12 @@ uv run script.py  # if script.py has PEP 723 metadata
 Use PyGithub instead for GitHub operations:
 
 ```python
+import os
 from github import Github
 
-# Authenticate using environment variable
-g = Github()  # Uses GITHUB_TOKEN from environment
+# Authenticate using GITHUB_TOKEN from environment
+token = os.getenv('GITHUB_TOKEN')
+g = Github(token)
 
 # Get repository
 repo = g.get_repo("owner/repo")
