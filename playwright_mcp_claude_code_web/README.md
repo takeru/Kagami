@@ -48,7 +48,7 @@ playwright_mcp_claude_code_web/
 └── setup_mcp.py                        # Full asynchronous setup script
 ```
 
-## 🔧 Detailed Usage
+## 🔧 How It Works
 
 ### MCP Server Launch Script (mcp.py)
 
@@ -72,14 +72,16 @@ playwright_mcp_claude_code_web/
 }
 ```
 
-**Synchronous setup (runs on startup, blocks until complete):**
+### Two-Phase Setup
+
+**Phase 1: Synchronous Setup (runs on startup)**
 1. Install @playwright/mcp globally if not installed
 2. Create minimal configuration file
 3. Start temporary playwright-mcp process
 4. Fetch actual tools/list from playwright-mcp
 5. Store tools in memory
 
-**Asynchronous setup (runs in background):**
+**Phase 2: Asynchronous Setup (runs in background)**
 1. Verify certutil installation
 2. Install Firefox browser
 3. Create Firefox profile (`/home/user/firefox-profile`)
@@ -93,20 +95,6 @@ playwright_mcp_claude_code_web/
 - Before async setup: Returns fetched tool list, tool calls return "setup in progress" error
 - After async setup: Always proxies `tools/list` and tool calls to playwright-mcp
 - No static tool definitions - always real tools from playwright-mcp
-
-### Setup Scripts
-
-**setup_minimal.py:**
-- Runs synchronously during mcp.py startup
-- Installs @playwright/mcp via npm
-- Creates minimal Firefox configuration
-- Used to fetch initial tool list
-
-**setup_mcp.py:**
-- Runs asynchronously in background
-- Installs certutil and Firefox
-- Creates Firefox profile and imports CA certificates
-- Starts proxy.py and playwright-mcp for full functionality
 
 ## 🔍 Troubleshooting
 
@@ -146,7 +134,9 @@ When problems occur, follow these steps:
    mcp__playwright__browser_navigateでyahooのトピックスとってきて
    ```
 
-### Certificate Error Occurs
+### Common Issues
+
+#### Certificate Error
 
 **Symptom:**
 ```
@@ -155,20 +145,20 @@ SEC_ERROR_UNKNOWN_ISSUER
 ```
 
 **Solution:**
+mcp.py automatically handles setup. If certificates are missing, restart the MCP server.
+
+Verify CA certificates:
 ```bash
-# Verify CA certificates
 certutil -L -d sql:/home/user/firefox-profile | grep Anthropic
 ```
 
-**Note:** mcp.py automatically handles setup. If certificates are missing, restart the MCP server.
-
-**Expected output:**
+Expected output:
 ```
 Anthropic TLS Inspection CA                                  C,,
 Anthropic TLS Inspection CA Production                       C,,
 ```
 
-### Firefox Not Found
+#### Firefox Not Found
 
 **Symptom:**
 ```
@@ -178,7 +168,7 @@ Browser specified in your config is not installed
 **Solution:**
 Firefox is automatically installed by `setup_mcp.py`. If this error occurs, restart the MCP server to trigger setup.
 
-### proxy.py Won't Start
+#### proxy.py Won't Start
 
 **Symptom:**
 ```
@@ -189,22 +179,22 @@ Firefox is automatically installed by `setup_mcp.py`. If this error occurs, rest
 - Verify this is Claude Code Web environment
 - Check proxy settings with `echo $HTTPS_PROXY`
 
-## 💡 Important Points
+## 💡 Technical Background
 
-### 1. proxy.py is Required
+### Why proxy.py is Required
 
-**Why needed?**
+**Reason:**
 - To handle JWT authentication
 - Firefox cannot directly handle complex JWT authentication
 
-**Contents of HTTPS_PROXY environment variable:**
+**HTTPS_PROXY format:**
 ```
 http://user:jwt_eyJ0eXAi...@host:port
 ```
 
-### 2. CA Certificate Import is Required
+### Why CA Certificate Import is Required
 
-**Why needed?**
+**Reason:**
 - Certificates are replaced by TLS Inspection
 - Import to Firefox profile, not system certificate store
 
@@ -213,69 +203,6 @@ http://user:jwt_eyJ0eXAi...@host:port
 curl   → System certificate store → Access successful
 Firefox → Its own certificate store → Fails without import
 ```
-
-## 📚 Related Documentation
-
-- [CA Certificate Import Guide](../investigation/playwright/CA_CERTIFICATE_IMPORT_GUIDE.md)
-- [Firefox Setup in HOME=/home/user Environment](../investigation/playwright/HOME_USER_FIREFOX_SETUP.md)
-- [Playwright Investigation Summary](../PLAYWRIGHT_INVESTIGATION.md)
-
-## 🧪 Test Code
-
-Verified test code:
-- `test_24_firefox_profile_with_proxy_py.py` - Complete success version ✅
-- `test_25_verify_system_cert_not_needed.py` - Verification that system certificate store is not needed
-
-## ✅ Checklist
-
-Verify setup completed correctly:
-```bash
-# Verify CA certificates
-certutil -L -d sql:/home/user/firefox-profile | grep Anthropic
-```
-
-Expected output:
-```
-Anthropic TLS Inspection CA                                  C,,
-Anthropic TLS Inspection CA Production                       C,,
-```
-
-If all checks pass, you can access HTTPS sites without certificate errors!
-
-## 🎓 What You'll Learn
-
-Through this setup you can learn:
-
-1. **How TLS Inspection Works**
-   - All HTTPS traffic is intercepted
-   - Certificates are replaced
-   - Mechanism for security checks
-
-2. **Firefox Certificate Management**
-   - Uses its own certificate store
-   - Separate from system certificate store
-   - Direct import to profile is required
-
-3. **JWT Authentication Handling**
-   - proxy.py is essential
-   - Firefox cannot handle directly
-   - Provided as simple HTTP proxy
-
-4. **Both Are Needed**
-   - CA certificate import ✅
-   - Using proxy.py ✅
-   - → Success for the first time!
-
-## 🤝 Support
-
-If problems occur:
-
-1. Restart MCP server to trigger automatic setup
-2. Check detailed documentation
-3. Refer to test code
-4. Verify CA certificate import status with `certutil -L -d sql:/home/user/firefox-profile | grep Anthropic`
-
----
 
 ## 📝 Technical Notes
 
