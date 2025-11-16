@@ -34,10 +34,6 @@ If it fails, refer to the script and manually set up the submodule and .venv.
 uv run python src/package/path/to/script.py
 ```
 
-```bash
-uv run pytest tests
-```
-
 **PEP 723 compliant scripts:**
 ```bash
 uv run script.py  # if script.py has PEP 723 metadata
