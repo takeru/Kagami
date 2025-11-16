@@ -1,5 +1,3 @@
-**IMPORTANT**: All interactions with users must be conducted in Japanese
-
 ## Git Commit Notes
 
 **Do NOT commit the following files:**
@@ -41,18 +39,16 @@ The MCP server uses a lazy tool registration approach to **avoid startup timeout
    - certutil installation
    - @playwright/mcp installation
    - proxy.py installation (uv pip install proxy.py)
-   - Firefox (build v1496) installation
+   - Firefox installation
    - Firefox profile creation
    - CA certificate import
-3. During setup, returns "setup in progress" status tool
+3. During setup, returns "setup in progress" error for tool calls
 4. After setup completes, starts playwright-mcp process
 5. Proxies subsequent requests to playwright-mcp
 
 **Note:**
-- First startup takes several minutes for setup
-- During setup, only `mcp_setup_status` tool is available
+- First startup takes time for setup (30+ seconds)
 - After setup completes, all Playwright MCP tools become available
-- `HTTPS_PROXY` environment variable is required
 
 ### Dependencies
 
@@ -70,7 +66,3 @@ In Claude Code Web environment, `mcp__playwright` should be installed.
 **Available tools:**
 - `mcp__playwright__browser_navigate` - Navigate to URL in browser
 - Other Playwright MCP tools
-
-**Note:**
-- First startup takes time for setup, so it may not be immediately available
-- Need to wait until setup completes (30+ seconds)

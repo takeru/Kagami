@@ -24,7 +24,7 @@ Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT Auth Pr
 
 1. **mcp.py**: MCP server entry point. Responsible for initial setup and launching proxy.py
 2. **@playwright/mcp**: Playwright MCP server implementation (Node.js)
-3. **Firefox**: Browser engine (build v1496)
+3. **Firefox**: Browser engine
 4. **proxy.py**: Local proxy server
 5. **JWT Auth Proxy**: Authentication proxy for external access
 
@@ -36,21 +36,13 @@ The following will be automatically set up on first startup:
 
 1. certutil installation
 2. @playwright/mcp installation
-3. Firefox (build v1496) installation
+3. Firefox installation
 4. Firefox profile creation
 5. CA certificate import
 6. Configuration file generation
 
 **Note:**
 - First startup may take 30 seconds or more
-- `HTTPS_PROXY` environment variable is required
-
-### Environment Variables
-
-```bash
-export HTTPS_PROXY="your_jwt_proxy_url"
-export HOME="/home/user"
-```
 
 ## Usage
 
@@ -65,75 +57,78 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
       "command": "python3",
       "args": [
         "playwright_mcp_claude_code_web/mcp.py"
-      ],
-      "env": {
-        "HOME": "/home/user"
-      }
+      ]
     }
   }
 }
 ```
-
-### Manual Launch (For Debugging)
-
-```bash
-python3 playwright_mcp_claude_code_web/mcp.py
-```
-
-**Note:** `mcp.py` uses only standard libraries. However, the `proxy.py` command must be installed in the environment.
 
 ## File Structure
 
 ```
 .
 ├── playwright_mcp_claude_code_web/
-│   └── mcp.py                          # MCP server (uses only standard library)
+│   ├── mcp.py                          # MCP server (uses only standard library)
+│   ├── setup_minimal.py                # Minimal synchronous setup
+│   ├── setup_mcp.py                    # Full asynchronous setup
+│   └── README.md                       # Detailed documentation
 ├── .mcp.json                           # MCP server configuration
 └── README.md                           # This file
 ```
 
-## Troubleshooting
-
-### Connection Timeout
-
-First startup requires time for Firefox download and installation (30+ seconds). It's recommended to set `timeout` to 180000 (3 minutes) in `.mcp.json`.
-
-### Proxy Error
-
-Verify that `HTTPS_PROXY` environment variable is set:
-
-```bash
-echo $HTTPS_PROXY
-```
-
-### CA Certificate Error
-
-Verify CA certificate is properly imported:
-
-```bash
-certutil -L -d sql:/home/user/firefox-profile
-```
-
-The following certificates should be displayed:
-- Anthropic TLS Inspection CA
-- Anthropic TLS Inspection CA Production
-
 ## Technical Details
 
-### Communication Flow
+### Startup Flow
+
+**mcp.py** uses a two-phase setup approach to avoid timeout issues:
+
+#### Phase 1: Synchronous Setup (runs before responding)
+
+1. **Minimal Setup** (`setup_minimal.py`)
+   - Install `@playwright/mcp` via npm
+   - Create minimal Firefox configuration file
+
+2. **Fetch Tool List**
+   - Start temporary `@playwright/mcp` process
+   - Fetch available tool definitions
+   - Store tool list for immediate response to `tools/list` requests
+   - Terminate temporary process
+
+3. **Start MCP Server**
+   - Begin responding as MCP server
+   - Return stored tool list for `tools/list` requests
+   - Return "setup in progress" error for `tools/call` requests
+
+#### Phase 2: Asynchronous Setup (runs in background)
+
+4. **Full Setup** (`setup_mcp.py` - runs in background thread)
+   - Install `certutil` (for certificate management)
+   - Install `proxy.py` via uv
+   - Install Firefox browser
+   - Create Firefox profile (`/home/user/firefox-profile`)
+   - Import CA certificates for TLS inspection
+   - Generate final configuration file
+
+5. **Start Services**
+   - Start `proxy.py` (localhost:18915)
+   - Start `@playwright/mcp` with full configuration
+   - Begin proxying all requests to `@playwright/mcp`
+
+### Communication Flow (After Setup)
 
 1. Claude Code sends request to `mcp.py` via MCP protocol (stdin/stdout)
-2. `mcp.py` starts `proxy.py` (localhost:18915)
-3. `mcp.py` starts `@playwright/mcp`
-4. Playwright launches Firefox (proxy setting: localhost:18915)
-5. `proxy.py` forwards to JWT authentication proxy
-6. Access external sites
+2. `mcp.py` proxies request to `@playwright/mcp`
+3. `@playwright/mcp` launches Firefox (proxy setting: localhost:18915)
+4. `proxy.py` forwards requests to JWT authentication proxy
+5. Access external sites through authenticated proxy
 
 ### Security
 
 - Import CA certificate for TLS inspection into Firefox profile
 - All HTTPS traffic goes through JWT authentication proxy
 - Firefox runs with dedicated profile (/home/user/firefox-profile)
+
+**Note:** Claude Code Web environment performs TLS Inspection on all HTTPS communications for security auditing purposes. This project imports the necessary CA certificates to enable secure browsing within this monitored environment.
 
 ## References
 
