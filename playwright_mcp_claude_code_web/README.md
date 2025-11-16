@@ -6,11 +6,13 @@ Complete setup for accessing HTTPS sites without certificate errors using Playwr
 
 This directory contains:
 
-- **mcp.py**: MCP server launch script (**with automatic setup feature**)
+- **mcp.py**: MCP server launch script v2.0 (**with automatic setup + tools/list_changed workaround**)
 - **setup.sh**: Manual setup script (optional)
 - **example.py**: Sample code for fetching Yahoo! JAPAN topics
 - **test_mcp_setup.py**: Setup verification script
 - **playwright-firefox-config.json**: Firefox configuration file (auto-generated)
+
+**v2.0 Update:** Works around Claude Code's lack of `tools/list_changed` notification support by returning the full tool list immediately on first startup.
 
 ## 📋 Communication Flow
 
@@ -87,11 +89,13 @@ playwright_mcp_claude_code_web/
 
 ### MCP Server Launch Script (mcp.py)
 
-**Features:**
-- Runs automatic setup on first startup
-- Skips if already set up
+**Features (v2.0):**
+- Returns full tool list immediately on startup (bypasses Claude Code's tools/list_changed limitation)
+- Returns clear error messages for tool calls during setup
+- Runs automatic setup in background
 - Auto-starts proxy.py
 - Launches playwright-mcp in stdio mode
+- Timestamped logging for better debugging
 
 **.mcp.json configuration:**
 ```json
@@ -107,13 +111,18 @@ playwright_mcp_claude_code_web/
 }
 ```
 
-**Automatic setup contents:**
+**Automatic setup contents (background):**
 1. Verify certutil installation
 2. Install @playwright/mcp globally
 3. Install Firefox build v1496
 4. Create Firefox profile (`/home/user/firefox-profile`)
 5. Import CA certificates
 6. Create MCP configuration file
+
+**v2.0 Behavior:**
+- Tool list is returned immediately (7 tools: navigate, screenshot, click, fill, select, hover, evaluate)
+- Tool calls return "setup in progress" error until background setup completes
+- No `tools/list_changed` notification needed (Claude Code doesn't support it)
 
 ### Setup Verification Script (test_mcp_setup.py)
 
