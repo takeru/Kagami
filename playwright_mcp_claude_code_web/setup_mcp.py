@@ -213,22 +213,19 @@ def setup_firefox_profile():
     log(f"Firefox profile created: {profile_dir}")
 
 
-def import_ca_certificates():
-    """Import JWT authentication proxy CA certificates"""
-    log("Checking CA certificate import status...")
-
-    profile_dir = Path("/home/user/firefox-profile")
+def import_ca_certificate_to_profile(profile_dir: Path):
+    """Import CA certificates to specified Firefox profile"""
     staging_cert = Path("/usr/local/share/ca-certificates/swp-ca-staging.crt")
     production_cert = Path("/usr/local/share/ca-certificates/swp-ca-production.crt")
 
     # Verify certificate files exist
     if not staging_cert.exists():
         log(f"Staging CA certificate not found: {staging_cert}", "ERROR")
-        sys.exit(1)
+        return False
 
     if not production_cert.exists():
         log(f"Production CA certificate not found: {production_cert}", "ERROR")
-        sys.exit(1)
+        return False
 
     # Import staging CA certificate
     result = run_command([
@@ -239,14 +236,14 @@ def import_ca_certificates():
     ], check=False, capture_output=True)
 
     if result and result.returncode == 0:
-        log("Staging CA certificate is already imported")
+        log(f"Staging CA certificate already imported to {profile_dir}")
     else:
-        log("Importing staging CA certificate...")
+        log(f"Importing staging CA certificate to {profile_dir}...")
         run_command([
             "certutil",
             "-A",
             "-n", "Anthropic TLS Inspection CA",
-            "-t", "C,,",
+            "-t", "CT,C,C",
             "-i", str(staging_cert),
             "-d", f"sql:{profile_dir}"
         ])
@@ -261,18 +258,35 @@ def import_ca_certificates():
     ], check=False, capture_output=True)
 
     if result and result.returncode == 0:
-        log("Production CA certificate is already imported")
+        log(f"Production CA certificate already imported to {profile_dir}")
     else:
-        log("Importing production CA certificate...")
+        log(f"Importing production CA certificate to {profile_dir}...")
         run_command([
             "certutil",
             "-A",
             "-n", "Anthropic TLS Inspection CA Production",
-            "-t", "C,,",
+            "-t", "CT,C,C",
             "-i", str(production_cert),
             "-d", f"sql:{profile_dir}"
         ])
         log("Production CA certificate imported")
+
+    return True
+
+
+def import_ca_certificates():
+    """Import JWT authentication proxy CA certificates to all Firefox profiles"""
+    log("Checking CA certificate import status...")
+
+    # Import to main profile
+    main_profile = Path("/home/user/firefox-profile")
+    import_ca_certificate_to_profile(main_profile)
+
+    # Import to Playwright MCP profile if it exists
+    mcp_profile = Path("/home/user/.cache/ms-playwright/mcp-firefox")
+    if mcp_profile.exists() and (mcp_profile / "cert9.db").exists():
+        log("Found Playwright MCP profile, importing CA certificates...")
+        import_ca_certificate_to_profile(mcp_profile)
 
 
 def setup_config_file():
@@ -288,6 +302,7 @@ def setup_config_file():
 
     log("Creating MCP configuration file...")
 
+    # Playwright MCP configuration (correct structure from commit 16d440a)
     config = {
         "browser": {
             "browserName": "firefox",
