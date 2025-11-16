@@ -75,10 +75,6 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
 
 ## Troubleshooting
 
-### Connection Timeout
-
-First startup requires time for Firefox download and installation (30+ seconds). It's recommended to set `timeout` to 180000 (3 minutes) in `.mcp.json`.
-
 ### CA Certificate Error
 
 Verify CA certificate is properly imported:
