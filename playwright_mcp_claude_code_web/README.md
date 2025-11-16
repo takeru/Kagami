@@ -115,6 +115,42 @@ playwright_mcp_claude_code_web/
 
 ## 🔍 Troubleshooting
 
+### Debugging Steps
+
+When problems occur, follow these steps:
+
+1. **Check Logs**
+   ```bash
+   # Check Claude Code main log
+   tail -f /tmp/claude-code.log
+
+   # Filter mcp.py related logs
+   grep -i "mcp" /tmp/claude-code.log
+   grep -i "playwright" /tmp/claude-code.log
+   ```
+
+2. **Restart Session**
+   - Start a new Claude Code session to trigger fresh setup
+   - Previous session state might be causing issues
+
+3. **Verify MCP Tools**
+   Use this debug prompt in Claude Code:
+   ```
+   mcp toolのリスト見せて。 mcp__playwrightある？ あるならyahooのトピックとってきて。
+   ```
+
+4. **Check Setup Timeline**
+   Use this debug prompt to analyze logs:
+   ```
+   /tmp/claude-code.logやその他ログからmcp.py関連のセットアップログ、mcp tool呼び出しのタイミングを時系列で整理して。
+   ```
+
+5. **Test Browser Navigation**
+   Simple test to verify everything works:
+   ```
+   mcp__playwright__browser_navigateでyahooのトピックスとってきて
+   ```
+
 ### Certificate Error Occurs
 
 **Symptom:**
