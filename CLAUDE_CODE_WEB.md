@@ -1,34 +1,34 @@
-# Claude Code Webの環境での注意事項
+# Notes for Claude Code Web Environment
 
-CLAUDE_CODE_REMOTE 環境変数が設定されているかどうかで、Claude Code Webの環境かどうかを判断します。
+Determine if this is Claude Code Web environment by checking if the CLAUDE_CODE_REMOTE environment variable is set.
 
 ```
-if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "Claude Code Webです"; else echo "Claude Code Webではありません"; fi
+if [ -n "$CLAUDE_CODE_REMOTE" ]; then echo "This is Claude Code Web"; else echo "This is not Claude Code Web"; fi
 ```
 
-## ログファイル
+## Log Files
 
-Claude Code Webの詳細なログは以下の場所に保存されています：
+Detailed logs for Claude Code Web are saved in the following location:
 
 ```
 /tmp/claude-code.log
 ```
 
-エラーやMCPサーバーの起動状態を確認する場合は、このログファイルを参照してください。
+If you need to check errors or MCP server startup status, please refer to this log file.
 
-## 環境セットアップ
+## Environment Setup
 
-pythonの実行をするまえに、.claude/claude_code_web_setup.sh を実行することで、環境セットアップを行うようにしてください。
+Before executing Python code, run .claude/claude_code_web_setup.sh to perform environment setup.
 
 ```bash
 ./.claude/claude_code_web_setup.sh
 ```
 
-"setup script completed" が出力されていれば成功です。
-失敗した場合は、スクリプトを参考に、submoduleと.venvを手動でセットアップしてください。
+If "setup script completed" is output, it was successful.
+If it fails, refer to the script and manually set up the submodule and .venv.
 
 
-## pythonの実行（セットアップが完了している場合）
+## Executing Python (after setup is completed)
 
 ```bash
 uv run python src/package/path/to/script.py
@@ -38,7 +38,7 @@ uv run python src/package/path/to/script.py
 uv run pytest tests
 ```
 
-**PEP 723対応スクリプト:**
+**PEP 723 compliant scripts:**
 ```bash
-uv run script.py  # script.pyにPEP 723メタデータがある場合
+uv run script.py  # if script.py has PEP 723 metadata
 ```
