@@ -43,14 +43,6 @@ The following will be automatically set up on first startup:
 
 **Note:**
 - First startup may take 30 seconds or more
-- `HTTPS_PROXY` environment variable is required
-
-### Environment Variables
-
-```bash
-export HTTPS_PROXY="your_jwt_proxy_url"
-export HOME="/home/user"
-```
 
 ## Usage
 
@@ -65,10 +57,7 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
       "command": "python3",
       "args": [
         "playwright_mcp_claude_code_web/mcp.py"
-      ],
-      "env": {
-        "HOME": "/home/user"
-      }
+      ]
     }
   }
 }
@@ -97,14 +86,6 @@ python3 playwright_mcp_claude_code_web/mcp.py
 ### Connection Timeout
 
 First startup requires time for Firefox download and installation (30+ seconds). It's recommended to set `timeout` to 180000 (3 minutes) in `.mcp.json`.
-
-### Proxy Error
-
-Verify that `HTTPS_PROXY` environment variable is set:
-
-```bash
-echo $HTTPS_PROXY
-```
 
 ### CA Certificate Error
 
