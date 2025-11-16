@@ -59,20 +59,98 @@ g = Github(token)
 
 # Get repository
 repo = g.get_repo("owner/repo")
+```
 
-# Create issue
+### Issue Operations
+
+```python
+# Create Issue
 issue = repo.create_issue(
     title="Issue title",
-    body="Issue body"
+    body="Issue description\n\nDetails here..."
+)
+print(f"Created issue #{issue.number}: {issue.html_url}")
+
+# Update Issue
+issue.edit(
+    title="Updated title",
+    body="Updated description",
+    state="open"  # or "closed"
 )
 
-# Create pull request
+# Add comment to Issue
+comment = issue.create_comment("This is a comment on the issue.")
+print(f"Added comment ID: {comment.id}")
+
+# Get Issue comments
+comments = issue.get_comments()
+for c in comments:
+    print(f"{c.user.login}: {c.body}")
+
+# Close Issue
+issue.edit(state="closed")
+```
+
+### Pull Request Operations
+
+```python
+# Create Pull Request
 pr = repo.create_pull(
     title="PR title",
-    body="PR body",
-    head="feature-branch",
-    base="main"
+    body="PR description\n\n## Changes\n- Change 1\n- Change 2",
+    head="feature-branch",  # source branch
+    base="main"             # target branch
 )
+print(f"Created PR #{pr.number}: {pr.html_url}")
+
+# Update Pull Request
+pr.edit(
+    title="Updated PR title",
+    body="Updated PR description"
+)
+
+# Add comment to PR (issue comment)
+comment = pr.create_issue_comment("This is a general comment on the PR.")
+print(f"Added comment ID: {comment.id}")
+
+# Get PR comments (issue comments)
+comments = pr.get_issue_comments()
+for c in comments:
+    print(f"{c.user.login}: {c.body}")
+
+# Get PR review comments (code-level comments)
+review_comments = pr.get_review_comments()
+for rc in review_comments:
+    print(f"{rc.user.login} on {rc.path}:{rc.line}: {rc.body}")
+
+# Close PR
+pr.edit(state="closed")
+
+# Merge PR
+pr.merge(
+    commit_message="Merge pull request",
+    merge_method="squash"  # or "merge", "rebase"
+)
+```
+
+### Getting Existing Issues/PRs
+
+```python
+# Get specific issue by number
+issue = repo.get_issue(number=123)
+
+# Get specific PR by number
+pr = repo.get_pull(number=456)
+
+# List all open issues
+issues = repo.get_issues(state="open")
+for issue in issues:
+    print(f"#{issue.number}: {issue.title}")
+
+# List all open PRs
+prs = repo.get_pulls(state="open")
+for pr in prs:
+    print(f"#{pr.number}: {pr.title}")
 ```
 
 PyGithub is already installed in this project's dependencies.
