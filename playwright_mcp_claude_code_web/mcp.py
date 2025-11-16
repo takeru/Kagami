@@ -35,7 +35,6 @@ playwright_mcp_process = None
 setup_completed = False
 setup_error = None
 write_lock = threading.Lock()
-playwright_tools: List[Dict[str, Any]] = []
 
 # Playwright MCP tool definitions (静的に定義)
 PLAYWRIGHT_TOOLS = [
@@ -172,153 +171,6 @@ def log(message: str, level: str = "INFO"):
     print(f"[{timestamp}] {prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
 
 
-def get_playwright_tools_from_mcp() -> Optional[List[Dict[str, Any]]]:
-    """
-    Get actual tool list from @playwright/mcp
-    Returns cached list if available, otherwise fetches from running playwright-mcp
-    """
-    script_dir = Path(__file__).parent
-    cache_file = script_dir / ".playwright_tools_cache.json"
-
-    # Try to load from cache first
-    if cache_file.exists():
-        try:
-            with open(cache_file, 'r') as f:
-                cached_tools = json.load(f)
-                log(f"Loaded {len(cached_tools)} tools from cache", "DEBUG")
-                return cached_tools
-        except Exception as e:
-            log(f"Failed to load cache: {e}", "WARN")
-
-    # Check if setup is completed
-    config_path = script_dir / "playwright-firefox-config.json"
-    if not config_path.exists():
-        log("Setup not completed yet, using static tool definitions", "DEBUG")
-        return None
-
-    # Try to fetch from playwright-mcp
-    try:
-        log("Fetching tool list from playwright-mcp...", "DEBUG")
-
-        # Start a temporary playwright-mcp process
-        if not start_proxy():
-            log("Failed to start proxy for tool fetching", "WARN")
-            return None
-
-        cmd = [
-            'node',
-            '/opt/node22/lib/node_modules/@playwright/mcp/cli.js',
-            '--config', str(config_path),
-            '--browser', 'firefox',
-            '--proxy-server', 'http://127.0.0.1:18915'
-        ]
-
-        env = os.environ.copy()
-        env['HOME'] = '/home/user'
-
-        temp_process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=env,
-            bufsize=0
-        )
-
-        try:
-            # Send initialize request
-            init_request = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {},
-                    "clientInfo": {"name": "mcp-wrapper", "version": "2.0.0"}
-                }
-            }
-            write_jsonrpc_message(temp_process.stdin, init_request)
-            read_jsonrpc_message(temp_process.stdout)  # Read initialize response
-
-            # Send tools/list request
-            tools_request = {
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/list",
-                "params": {}
-            }
-            write_jsonrpc_message(temp_process.stdin, tools_request)
-            tools_response = read_jsonrpc_message(temp_process.stdout)
-
-            if tools_response and "result" in tools_response:
-                tools = tools_response["result"].get("tools", [])
-                log(f"Fetched {len(tools)} tools from playwright-mcp", "DEBUG")
-
-                # Save to cache
-                try:
-                    with open(cache_file, 'w') as f:
-                        json.dump(tools, f, indent=2)
-                    log("Saved tools to cache", "DEBUG")
-                except Exception as e:
-                    log(f"Failed to save cache: {e}", "WARN")
-
-                return tools
-            else:
-                log("Failed to get tools from playwright-mcp response", "WARN")
-                return None
-
-        finally:
-            # Clean up temp process
-            try:
-                temp_process.terminate()
-                temp_process.wait(timeout=2)
-            except:
-                temp_process.kill()
-
-    except Exception as e:
-        log(f"Failed to fetch tools from playwright-mcp: {e}", "WARN")
-        return None
-
-
-def update_tool_cache():
-    """Update tool cache from running playwright-mcp process"""
-    global playwright_mcp_process, playwright_tools
-
-    if not playwright_mcp_process:
-        log("playwright-mcp not running, cannot update cache", "WARN")
-        return
-
-    script_dir = Path(__file__).parent
-    cache_file = script_dir / ".playwright_tools_cache.json"
-
-    try:
-        # Send tools/list request to running playwright-mcp
-        tools_request = {
-            "jsonrpc": "2.0",
-            "id": 999,
-            "method": "tools/list",
-            "params": {}
-        }
-
-        write_jsonrpc_message(playwright_mcp_process.stdin, tools_request)
-        tools_response = read_jsonrpc_message(playwright_mcp_process.stdout)
-
-        if tools_response and "result" in tools_response:
-            tools = tools_response["result"].get("tools", [])
-            log(f"Fetched {len(tools)} tools from running playwright-mcp")
-
-            # Update global tools list
-            playwright_tools = tools
-
-            # Save to cache
-            with open(cache_file, 'w') as f:
-                json.dump(tools, f, indent=2)
-            log("Updated tool cache successfully", "DEBUG")
-        else:
-            log("Failed to get tools from playwright-mcp", "WARN")
-
-    except Exception as e:
-        log(f"Error updating tool cache: {e}", "WARN")
 
 
 def run_setup_script():
@@ -359,13 +211,6 @@ def run_setup_script():
 
         setup_completed = True
         log("Full setup completed successfully")
-
-        # Update tool cache from playwright-mcp
-        try:
-            log("Updating tool cache from playwright-mcp...", "DEBUG")
-            update_tool_cache()
-        except Exception as e:
-            log(f"Failed to update tool cache: {e}", "WARN")
 
     except Exception as e:
         setup_error = f"Error during setup: {e}"
@@ -517,13 +362,12 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
+def handle_tools_list(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Handle tools/list request
-    Always return full tool list immediately (workaround for Claude Code's lack of tools/list_changed support)
+    - Before setup: return static tool list
+    - After setup: proxy to playwright-mcp
     """
-    global playwright_tools
-
     if setup_error:
         # When setup error occurs
         return {
@@ -535,19 +379,20 @@ def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-    # Use static tool definitions or fetched tools
-    if not playwright_tools:
-        fetched_tools = get_playwright_tools_from_mcp()
-        playwright_tools = fetched_tools if fetched_tools else PLAYWRIGHT_TOOLS
-        log(f"Returning {len(playwright_tools)} tools in tools/list", "DEBUG")
-
-    return {
-        "jsonrpc": "2.0",
-        "id": request.get("id"),
-        "result": {
-            "tools": playwright_tools
+    if not setup_completed:
+        # Before setup completes: return static tool list
+        log(f"Returning {len(PLAYWRIGHT_TOOLS)} static tools", "DEBUG")
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "result": {
+                "tools": PLAYWRIGHT_TOOLS
+            }
         }
-    }
+
+    # After setup completes: proxy to playwright-mcp
+    log("Proxying tools/list to playwright-mcp", "DEBUG")
+    return None  # Signal to proxy
 
 
 def handle_tool_call(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -657,6 +502,9 @@ def main():
 
             elif method == "tools/list":
                 response = handle_tools_list(request)
+                if response is None:
+                    # Proxy to playwright-mcp
+                    response = proxy_to_playwright_mcp(request)
 
             elif method == "tools/call":
                 response = handle_tool_call(request)

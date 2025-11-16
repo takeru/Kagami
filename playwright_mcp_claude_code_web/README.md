@@ -120,11 +120,11 @@ playwright_mcp_claude_code_web/
 6. Create MCP configuration file
 
 **v2.0 Behavior:**
-- Tool list is fetched from playwright-mcp and cached (`.playwright_tools_cache.json`)
-- First startup uses static fallback if cache doesn't exist
-- After setup completes, actual tool list is fetched and cached
+- Before setup: Returns static tool list (7 tools: navigate, screenshot, click, fill, select, hover, evaluate)
+- After setup: Always proxies `tools/list` to playwright-mcp for real-time tool list
 - Tool calls return "setup in progress" error until background setup completes
 - No `tools/list_changed` notification needed (Claude Code doesn't support it)
+- No caching - always fresh tool list from playwright-mcp
 
 ### Setup Verification Script (test_mcp_setup.py)
 
