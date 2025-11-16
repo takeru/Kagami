@@ -35,128 +35,7 @@ playwright_mcp_process = None
 setup_completed = False
 setup_error = None
 write_lock = threading.Lock()
-
-# Playwright MCP tool definitions (静的に定義)
-PLAYWRIGHT_TOOLS = [
-    {
-        "name": "playwright_navigate",
-        "description": "Navigate to a URL",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "URL to navigate to"
-                }
-            },
-            "required": ["url"]
-        }
-    },
-    {
-        "name": "playwright_screenshot",
-        "description": "Take a screenshot of the current page or a specific element",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name for the screenshot"
-                },
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector for element to screenshot (optional)"
-                },
-                "width": {
-                    "type": "number",
-                    "description": "Screenshot width (optional)"
-                },
-                "height": {
-                    "type": "number",
-                    "description": "Screenshot height (optional)"
-                }
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "playwright_click",
-        "description": "Click an element on the page",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector for element to click"
-                }
-            },
-            "required": ["selector"]
-        }
-    },
-    {
-        "name": "playwright_fill",
-        "description": "Fill out an input field",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector for input field"
-                },
-                "value": {
-                    "type": "string",
-                    "description": "Value to fill"
-                }
-            },
-            "required": ["selector", "value"]
-        }
-    },
-    {
-        "name": "playwright_select",
-        "description": "Select an option in a dropdown",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector for select element"
-                },
-                "value": {
-                    "type": "string",
-                    "description": "Value to select"
-                }
-            },
-            "required": ["selector", "value"]
-        }
-    },
-    {
-        "name": "playwright_hover",
-        "description": "Hover over an element",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "selector": {
-                    "type": "string",
-                    "description": "CSS selector for element to hover"
-                }
-            },
-            "required": ["selector"]
-        }
-    },
-    {
-        "name": "playwright_evaluate",
-        "description": "Execute JavaScript in the browser console",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "script": {
-                    "type": "string",
-                    "description": "JavaScript code to execute"
-                }
-            },
-            "required": ["script"]
-        }
-    }
-]
+playwright_tools: List[Dict[str, Any]] = []  # Tools fetched from playwright-mcp
 
 
 def log(message: str, level: str = "INFO"):
@@ -169,6 +48,124 @@ def log(message: str, level: str = "INFO"):
         "DEBUG": "🔍"
     }.get(level, "ℹ️")
     print(f"[{timestamp}] {prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
+
+
+def run_minimal_setup() -> bool:
+    """
+    Run minimal synchronous setup
+    Installs @playwright/mcp and creates minimal config
+    Returns True if successful
+    """
+    try:
+        log("Running minimal synchronous setup...")
+        script_dir = Path(__file__).parent
+        setup_script = script_dir / "setup_minimal.py"
+
+        start_time = time.time()
+        result = subprocess.run(
+            ["uv", "run", "python", str(setup_script)],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            timeout=180
+        )
+        elapsed = time.time() - start_time
+
+        if result.returncode != 0:
+            log(f"Minimal setup failed after {elapsed:.2f}s: {result.stderr}", "ERROR")
+            return False
+
+        log(f"Minimal setup completed in {elapsed:.2f}s")
+        return True
+
+    except Exception as e:
+        log(f"Error during minimal setup: {e}", "ERROR")
+        return False
+
+
+def fetch_tools_from_playwright_mcp() -> Optional[List[Dict[str, Any]]]:
+    """
+    Fetch tools list from playwright-mcp by starting a temporary process
+    Returns tools list or None if failed
+    """
+    try:
+        log("Fetching tools from playwright-mcp...", "DEBUG")
+
+        script_dir = Path(__file__).parent
+        config_path = script_dir / "playwright-firefox-config.json"
+
+        if not config_path.exists():
+            log("Config file not found", "ERROR")
+            return None
+
+        cmd = [
+            'node',
+            '/opt/node22/lib/node_modules/@playwright/mcp/cli.js',
+            '--config', str(config_path),
+            '--browser', 'firefox',
+            '--headless'
+        ]
+
+        env = os.environ.copy()
+        env['HOME'] = '/home/user'
+
+        temp_process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            bufsize=0
+        )
+
+        try:
+            # Send initialize request
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "mcp-wrapper", "version": "2.0.0"}
+                }
+            }
+            write_jsonrpc_message(temp_process.stdin, init_request)
+            init_response = read_jsonrpc_message(temp_process.stdout)
+
+            if not init_response:
+                log("Failed to get initialize response", "WARN")
+                return None
+
+            # Send tools/list request
+            tools_request = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {}
+            }
+            write_jsonrpc_message(temp_process.stdin, tools_request)
+            tools_response = read_jsonrpc_message(temp_process.stdout)
+
+            if tools_response and "result" in tools_response:
+                tools = tools_response["result"].get("tools", [])
+                log(f"Fetched {len(tools)} tools from playwright-mcp")
+                return tools
+            else:
+                log("Failed to get tools from response", "WARN")
+                return None
+
+        finally:
+            # Clean up temp process
+            try:
+                temp_process.terminate()
+                temp_process.wait(timeout=2)
+            except:
+                temp_process.kill()
+
+    except Exception as e:
+        log(f"Error fetching tools: {e}", "WARN")
+        return None
 
 
 
@@ -365,9 +362,11 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
 def handle_tools_list(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Handle tools/list request
-    - Before setup: return static tool list
-    - After setup: proxy to playwright-mcp
+    - Before full setup: return fetched tool list from synchronous setup
+    - After full setup: proxy to playwright-mcp
     """
+    global playwright_tools
+
     if setup_error:
         # When setup error occurs
         return {
@@ -380,17 +379,28 @@ def handle_tools_list(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         }
 
     if not setup_completed:
-        # Before setup completes: return static tool list
-        log(f"Returning {len(PLAYWRIGHT_TOOLS)} static tools", "DEBUG")
+        # Before full setup completes: return fetched tools from synchronous setup
+        if not playwright_tools:
+            log("No tools available yet", "ERROR")
+            return {
+                "jsonrpc": "2.0",
+                "id": request.get("id"),
+                "error": {
+                    "code": -32603,
+                    "message": "Tools not loaded yet. Synchronous setup may have failed."
+                }
+            }
+
+        log(f"Returning {len(playwright_tools)} tools from synchronous setup", "DEBUG")
         return {
             "jsonrpc": "2.0",
             "id": request.get("id"),
             "result": {
-                "tools": PLAYWRIGHT_TOOLS
+                "tools": playwright_tools
             }
         }
 
-    # After setup completes: proxy to playwright-mcp
+    # After full setup completes: proxy to playwright-mcp for real-time list
     log("Proxying tools/list to playwright-mcp", "DEBUG")
     return None  # Signal to proxy
 
@@ -459,7 +469,7 @@ def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]
 
 def main():
     """Main process"""
-    global setup_completed
+    global setup_completed, playwright_tools
 
     # Set HOME environment variable
     os.environ['HOME'] = '/home/user'
@@ -471,12 +481,30 @@ def main():
     log("Playwright MCP Wrapper Starting (v2.0 - tools/list_changed workaround)")
     log("=" * 70)
 
-    # Start setup in background
+    # Run synchronous setup (must complete before responding)
+    log("Running synchronous setup...")
+    if not run_minimal_setup():
+        log("Synchronous setup failed - continuing with limited functionality", "WARN")
+    else:
+        # Fetch tools from playwright-mcp
+        log("Fetching tools from playwright-mcp...")
+        tools = fetch_tools_from_playwright_mcp()
+        if tools:
+            playwright_tools = tools
+            log(f"Successfully loaded {len(playwright_tools)} tools")
+        else:
+            log("Failed to fetch tools from playwright-mcp", "WARN")
+
+    # Start async setup in background
+    log("Starting asynchronous setup in background...")
     setup_thread = threading.Thread(target=run_setup_script, daemon=True)
     setup_thread.start()
 
     log("Starting to respond as MCP server")
-    log("Tool list will be returned immediately, but calls will fail until setup completes")
+    if playwright_tools:
+        log(f"Tool list available ({len(playwright_tools)} tools), calls will fail until async setup completes")
+    else:
+        log("WARNING: No tools loaded - check synchronous setup", "WARN")
 
     # Main loop: Process JSON-RPC messages
     try:
