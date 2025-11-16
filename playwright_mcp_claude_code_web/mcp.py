@@ -83,6 +83,36 @@ def check_proxy_installed() -> bool:
     return result and result.returncode == 0
 
 
+def get_installed_firefox_version() -> Optional[Path]:
+    """Dynamically detect installed Firefox version
+
+    Returns:
+        Path to installed Firefox directory. Returns None if not found.
+        If multiple versions are installed, returns the latest version (highest number).
+    """
+    cache_dir = Path("/home/user/.cache/ms-playwright")
+
+    if not cache_dir.exists():
+        return None
+
+    # Search for firefox-* pattern directories
+    firefox_dirs = list(cache_dir.glob("firefox-*"))
+
+    if not firefox_dirs:
+        return None
+
+    # Sort by version number (prefer latest version)
+    # Extract numeric part like firefox-1496 -> 1496
+    def extract_version(path: Path) -> int:
+        try:
+            return int(path.name.split('-')[1])
+        except (IndexError, ValueError):
+            return 0
+
+    firefox_dirs.sort(key=extract_version, reverse=True)
+    return firefox_dirs[0]
+
+
 def setup_certutil():
     """Verify certutil installation"""
     log("Checking certutil installation status...")
@@ -131,16 +161,17 @@ def setup_proxy_py():
 
 
 def setup_firefox():
-    """Install Firefox build v1496"""
-    log("Checking Firefox build v1496 installation status...")
+    """Install Firefox"""
+    log("Checking Firefox installation status...")
 
-    firefox_build = Path("/home/user/.cache/ms-playwright/firefox-1496")
+    firefox_build = get_installed_firefox_version()
 
-    if firefox_build.exists():
-        log(f"Firefox build v1496 is already installed: {firefox_build}")
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefox is already installed: {firefox_build} (build v{version})")
         return
 
-    log("Installing Firefox build v1496... (may take several minutes)", "WARN")
+    log("Installing Firefox... (may take several minutes)", "WARN")
 
     env = os.environ.copy()
     env["HOME"] = "/home/user"
@@ -152,7 +183,13 @@ def setup_firefox():
         "firefox"
     ])
 
-    log("Firefox build v1496 installed")
+    # Check version after installation
+    firefox_build = get_installed_firefox_version()
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefox installed: {firefox_build} (build v{version})")
+    else:
+        log("Firefox installation completed but version could not be verified", "WARN")
 
 
 def setup_firefox_profile():
@@ -323,7 +360,7 @@ def check_setup_completed() -> bool:
         ("certutil", lambda: check_command_exists("certutil")),
         ("@playwright/mcp", lambda: check_npm_package_installed("@playwright/mcp")),
         ("proxy.py", lambda: check_proxy_installed()),
-        ("Firefox", lambda: Path("/home/user/.cache/ms-playwright/firefox-1496").exists()),
+        ("Firefox", lambda: get_installed_firefox_version() is not None),
         ("Firefox profile", lambda: Path("/home/user/firefox-profile/cert9.db").exists()),
         ("MCP configuration file", lambda: (Path(__file__).parent / "playwright-firefox-config.json").exists()),
     ]
