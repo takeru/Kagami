@@ -3,18 +3,19 @@
 # requires-python = ">=3.11"
 # ///
 """
-Playwright MCP Server Launch Script for Claude Code (Timeout Mitigation Version)
+Playwright MCP Server Launch Script for Claude Code (tools/list_changed workaround)
 
 Communication flow:
   Claude Code → mcp.py (MCP Wrapper) → playwright-mcp (Firefox) → proxy.py → JWT Auth Proxy → Internet
 
 This script:
-  1. Responds immediately as an MCP server on startup (avoiding timeout)
-  2. Runs setup in a background thread
-  3. Proxies requests to playwright-mcp after setup completes
-  4. Stops proxy.py and playwright-mcp on exit
+  1. Returns full tool list immediately on first tools/list (avoiding Claude Code's tools/list_changed limitation)
+  2. Returns temporary errors for tool calls until setup completes
+  3. Runs full setup in a background thread
+  4. Proxies requests to playwright-mcp after setup completes
+  5. Stops proxy.py and playwright-mcp on exit
 
-This avoids the 30-second timeout in Claude Code Web.
+This avoids Claude Code's lack of support for tools/list_changed notifications.
 """
 import os
 import sys
@@ -24,8 +25,9 @@ import threading
 import time
 import atexit
 import signal
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 # Global variables
 proxy_process = None
@@ -33,22 +35,144 @@ playwright_mcp_process = None
 setup_completed = False
 setup_error = None
 write_lock = threading.Lock()
+playwright_tools: List[Dict[str, Any]] = []  # Tools fetched from playwright-mcp
 
 
 def log(message: str, level: str = "INFO"):
-    """Log output (outputs to stderr)"""
+    """Log output with timestamp (outputs to stderr)"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     prefix = {
         "INFO": "✓",
         "WARN": "⚠️",
         "ERROR": "❌",
         "DEBUG": "🔍"
     }.get(level, "ℹ️")
-    print(f"{prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
+    print(f"[{timestamp}] {prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
+
+
+def run_minimal_setup() -> bool:
+    """
+    Run minimal synchronous setup
+    Installs @playwright/mcp and creates minimal config
+    Returns True if successful
+    """
+    try:
+        log("Running minimal synchronous setup...")
+        script_dir = Path(__file__).parent
+        setup_script = script_dir / "setup_minimal.py"
+
+        start_time = time.time()
+        result = subprocess.run(
+            ["uv", "run", "python", str(setup_script)],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            timeout=180
+        )
+        elapsed = time.time() - start_time
+
+        if result.returncode != 0:
+            log(f"Minimal setup failed after {elapsed:.2f}s: {result.stderr}", "ERROR")
+            return False
+
+        log(f"Minimal setup completed in {elapsed:.2f}s")
+        return True
+
+    except Exception as e:
+        log(f"Error during minimal setup: {e}", "ERROR")
+        return False
+
+
+def fetch_tools_from_playwright_mcp() -> Optional[List[Dict[str, Any]]]:
+    """
+    Fetch tools list from playwright-mcp by starting a temporary process
+    Returns tools list or None if failed
+    """
+    try:
+        log("Fetching tools from playwright-mcp...", "DEBUG")
+
+        script_dir = Path(__file__).parent
+        config_path = script_dir / "playwright-firefox-config.json"
+
+        if not config_path.exists():
+            log("Config file not found", "ERROR")
+            return None
+
+        cmd = [
+            'node',
+            '/opt/node22/lib/node_modules/@playwright/mcp/cli.js',
+            '--config', str(config_path),
+            '--browser', 'firefox',
+            '--headless'
+        ]
+
+        env = os.environ.copy()
+        env['HOME'] = '/home/user'
+
+        temp_process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            bufsize=0
+        )
+
+        try:
+            # Send initialize request
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "mcp-wrapper", "version": "2.0.0"}
+                }
+            }
+            write_jsonrpc_message(temp_process.stdin, init_request)
+            init_response = read_jsonrpc_message(temp_process.stdout)
+
+            if not init_response:
+                log("Failed to get initialize response", "WARN")
+                return None
+
+            # Send tools/list request
+            tools_request = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {}
+            }
+            write_jsonrpc_message(temp_process.stdin, tools_request)
+            tools_response = read_jsonrpc_message(temp_process.stdout)
+
+            if tools_response and "result" in tools_response:
+                tools = tools_response["result"].get("tools", [])
+                log(f"Fetched {len(tools)} tools from playwright-mcp")
+                return tools
+            else:
+                log("Failed to get tools from response", "WARN")
+                return None
+
+        finally:
+            # Clean up temp process
+            try:
+                temp_process.terminate()
+                temp_process.wait(timeout=2)
+            except:
+                temp_process.kill()
+
+    except Exception as e:
+        log(f"Error fetching tools: {e}", "WARN")
+        return None
+
+
 
 
 def run_setup_script():
     """Run setup script (background thread)"""
-    global setup_completed, setup_error
+    global setup_completed, setup_error, playwright_mcp_process
 
     try:
         log("Starting background setup...")
@@ -56,28 +180,34 @@ def run_setup_script():
         script_dir = Path(__file__).parent
         setup_script = script_dir / "setup_mcp.py"
 
+        start_time = time.time()
         result = subprocess.run(
             ["uv", "run", "python", str(setup_script)],
             capture_output=True,
             text=True,
             env=os.environ.copy()
         )
+        elapsed = time.time() - start_time
 
         if result.returncode != 0:
             setup_error = f"Setup failed: {result.stderr}"
+            log(f"Setup failed after {elapsed:.2f}s", "ERROR")
             log(setup_error, "ERROR")
             return
 
-        log("Setup completed")
-        setup_completed = True
+        log(f"Setup script completed in {elapsed:.2f}s")
 
-        # Send notification to client
-        notification = {
-            "jsonrpc": "2.0",
-            "method": "notifications/tools/list_changed"
-        }
-        write_jsonrpc_message(sys.stdout, notification)
-        log("Sent tools/list_changed notification", "DEBUG")
+        # Start proxy and playwright-mcp
+        if not start_proxy():
+            setup_error = "Failed to start proxy.py"
+            return
+
+        if not start_playwright_mcp():
+            setup_error = "Failed to start playwright-mcp"
+            return
+
+        setup_completed = True
+        log("Full setup completed successfully")
 
     except Exception as e:
         setup_error = f"Error during setup: {e}"
@@ -94,9 +224,10 @@ def start_proxy():
         log("HTTPS_PROXY environment variable not set", "ERROR")
         return False
 
-    log(f"Starting proxy.py...")
+    log("Starting proxy.py...")
 
     try:
+        start_time = time.time()
         proxy_process = subprocess.Popen(
             [
                 "uv", "run", "proxy",
@@ -111,7 +242,8 @@ def start_proxy():
 
         # Wait for proxy.py to start
         time.sleep(2)
-        log("proxy.py started successfully (localhost:18915)")
+        elapsed = time.time() - start_time
+        log(f"proxy.py started successfully in {elapsed:.2f}s (localhost:18915)")
         return True
 
     except Exception as e:
@@ -130,7 +262,7 @@ def start_playwright_mcp():
         log(f"Configuration file not found: {config_path}", "ERROR")
         return False
 
-    log(f"Starting playwright-mcp...")
+    log("Starting playwright-mcp...")
 
     cmd = [
         'node',
@@ -144,6 +276,7 @@ def start_playwright_mcp():
     env['HOME'] = '/home/user'
 
     try:
+        start_time = time.time()
         playwright_mcp_process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -153,7 +286,8 @@ def start_playwright_mcp():
             bufsize=0
         )
 
-        log("playwright-mcp started successfully")
+        elapsed = time.time() - start_time
+        log(f"playwright-mcp started successfully in {elapsed:.2f}s")
         return True
 
     except Exception as e:
@@ -219,14 +353,20 @@ def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
             },
             "serverInfo": {
                 "name": "playwright-mcp-wrapper",
-                "version": "1.0.0"
+                "version": "2.0.0"
             }
         }
     }
 
 
-def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
-    """Handle tools/list request"""
+def handle_tools_list(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Handle tools/list request
+    - Before full setup: return fetched tool list from synchronous setup
+    - After full setup: proxy to playwright-mcp
+    """
+    global playwright_tools
+
     if setup_error:
         # When setup error occurs
         return {
@@ -237,25 +377,60 @@ def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
                 "message": f"Setup error: {setup_error}"
             }
         }
-    elif not setup_completed:
-        # During setup
+
+    if not setup_completed:
+        # Before full setup completes: return fetched tools from synchronous setup
+        if not playwright_tools:
+            log("No tools available yet", "ERROR")
+            return {
+                "jsonrpc": "2.0",
+                "id": request.get("id"),
+                "error": {
+                    "code": -32603,
+                    "message": "Tools not loaded yet. Synchronous setup may have failed."
+                }
+            }
+
+        log(f"Returning {len(playwright_tools)} tools from synchronous setup", "DEBUG")
         return {
             "jsonrpc": "2.0",
             "id": request.get("id"),
             "result": {
-                "tools": [{
-                    "name": "playwright_setup_in_progress",
-                    "description": "Playwright MCP server setup is in progress. Please wait...",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {}
-                    }
-                }]
+                "tools": playwright_tools
             }
         }
-    else:
-        # Setup completed - proxy to playwright-mcp
-        return None  # Requires proxy
+
+    # After full setup completes: proxy to playwright-mcp for real-time list
+    log("Proxying tools/list to playwright-mcp", "DEBUG")
+    return None  # Signal to proxy
+
+
+def handle_tool_call(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tools/call request"""
+    if setup_error:
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {
+                "code": -32603,
+                "message": f"Setup error: {setup_error}"
+            }
+        }
+
+    if not setup_completed:
+        # Setup still in progress - return temporary error
+        tool_name = request.get("params", {}).get("name", "unknown")
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {
+                "code": -32603,
+                "message": "Playwright MCP setup is still in progress. Please wait a moment and try again..."
+            }
+        }
+
+    # Setup completed - proxy to playwright-mcp
+    return None  # Signal to proxy
 
 
 def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -294,7 +469,7 @@ def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]
 
 def main():
     """Main process"""
-    global setup_completed
+    global setup_completed, playwright_tools
 
     # Set HOME environment variable
     os.environ['HOME'] = '/home/user'
@@ -303,14 +478,33 @@ def main():
     atexit.register(stop_processes)
 
     log("=" * 70)
-    log("Playwright MCP Wrapper Starting")
+    log("Playwright MCP Wrapper Starting (v2.0 - tools/list_changed workaround)")
     log("=" * 70)
 
-    # Start setup in background
+    # Run synchronous setup (must complete before responding)
+    log("Running synchronous setup...")
+    if not run_minimal_setup():
+        log("Synchronous setup failed - continuing with limited functionality", "WARN")
+    else:
+        # Fetch tools from playwright-mcp
+        log("Fetching tools from playwright-mcp...")
+        tools = fetch_tools_from_playwright_mcp()
+        if tools:
+            playwright_tools = tools
+            log(f"Successfully loaded {len(playwright_tools)} tools")
+        else:
+            log("Failed to fetch tools from playwright-mcp", "WARN")
+
+    # Start async setup in background
+    log("Starting asynchronous setup in background...")
     setup_thread = threading.Thread(target=run_setup_script, daemon=True)
     setup_thread.start()
 
     log("Starting to respond as MCP server")
+    if playwright_tools:
+        log(f"Tool list available ({len(playwright_tools)} tools), calls will fail until async setup completes")
+    else:
+        log("WARNING: No tools loaded - check synchronous setup", "WARN")
 
     # Main loop: Process JSON-RPC messages
     try:
@@ -337,32 +531,17 @@ def main():
             elif method == "tools/list":
                 response = handle_tools_list(request)
                 if response is None:
-                    # After setup completes, start playwright-mcp and proxy
-                    if not playwright_mcp_process:
-                        if not start_proxy():
-                            response = {
-                                "jsonrpc": "2.0",
-                                "id": request.get("id"),
-                                "error": {
-                                    "code": -32603,
-                                    "message": "Failed to start proxy.py"
-                                }
-                            }
-                        elif not start_playwright_mcp():
-                            response = {
-                                "jsonrpc": "2.0",
-                                "id": request.get("id"),
-                                "error": {
-                                    "code": -32603,
-                                    "message": "Failed to start playwright-mcp"
-                                }
-                            }
+                    # Proxy to playwright-mcp
+                    response = proxy_to_playwright_mcp(request)
 
-                    if response is None:
-                        response = proxy_to_playwright_mcp(request)
+            elif method == "tools/call":
+                response = handle_tool_call(request)
+                if response is None:
+                    # Proxy to playwright-mcp
+                    response = proxy_to_playwright_mcp(request)
 
             else:
-                # Proxy other methods to playwright-mcp
+                # Proxy other methods to playwright-mcp (only if setup completed)
                 if setup_completed and playwright_mcp_process:
                     response = proxy_to_playwright_mcp(request)
                 else:

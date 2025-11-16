@@ -6,11 +6,13 @@ Complete setup for accessing HTTPS sites without certificate errors using Playwr
 
 This directory contains:
 
-- **mcp.py**: MCP server launch script (**with automatic setup feature**)
+- **mcp.py**: MCP server launch script v2.0 (**with automatic setup + tools/list_changed workaround**)
 - **setup.sh**: Manual setup script (optional)
 - **example.py**: Sample code for fetching Yahoo! JAPAN topics
 - **test_mcp_setup.py**: Setup verification script
 - **playwright-firefox-config.json**: Firefox configuration file (auto-generated)
+
+**v2.0 Update:** Works around Claude Code's lack of `tools/list_changed` notification support by returning the full tool list immediately on first startup.
 
 ## 📋 Communication Flow
 
@@ -87,11 +89,13 @@ playwright_mcp_claude_code_web/
 
 ### MCP Server Launch Script (mcp.py)
 
-**Features:**
-- Runs automatic setup on first startup
-- Skips if already set up
+**Features (v2.0):**
+- Returns full tool list immediately on startup (bypasses Claude Code's tools/list_changed limitation)
+- Returns clear error messages for tool calls during setup
+- Runs automatic setup in background
 - Auto-starts proxy.py
 - Launches playwright-mcp in stdio mode
+- Timestamped logging for better debugging
 
 **.mcp.json configuration:**
 ```json
@@ -107,13 +111,28 @@ playwright_mcp_claude_code_web/
 }
 ```
 
-**Automatic setup contents:**
+**Synchronous setup (runs on startup, blocks until complete):**
+1. Install @playwright/mcp globally if not installed
+2. Create minimal configuration file
+3. Start temporary playwright-mcp process
+4. Fetch actual tools/list from playwright-mcp
+5. Store tools in memory
+
+**Asynchronous setup (runs in background):**
 1. Verify certutil installation
-2. Install @playwright/mcp globally
-3. Install Firefox build v1496
-4. Create Firefox profile (`/home/user/firefox-profile`)
-5. Import CA certificates
-6. Create MCP configuration file
+2. Install Firefox build v1496
+3. Create Firefox profile (`/home/user/firefox-profile`)
+4. Import CA certificates
+5. Create full configuration file
+6. Start proxy.py
+7. Start playwright-mcp (full functionality)
+
+**v2.0 Behavior:**
+- Startup: Synchronous setup fetches real tools from playwright-mcp
+- Before async setup: Returns fetched tool list, tool calls return "setup in progress" error
+- After async setup: Always proxies `tools/list` and tool calls to playwright-mcp
+- No `tools/list_changed` notification needed (Claude Code doesn't support it)
+- No static tool definitions - always real tools from playwright-mcp
 
 ### Setup Verification Script (test_mcp_setup.py)
 
