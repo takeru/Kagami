@@ -73,20 +73,6 @@ Configure in `.mcp.json` and Claude Code will automatically launch it:
 └── README.md                           # This file
 ```
 
-## Troubleshooting
-
-### CA Certificate Error
-
-Verify CA certificate is properly imported:
-
-```bash
-certutil -L -d sql:/home/user/firefox-profile
-```
-
-The following certificates should be displayed:
-- Anthropic TLS Inspection CA
-- Anthropic TLS Inspection CA Production
-
 ## Technical Details
 
 ### Communication Flow
