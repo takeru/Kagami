@@ -51,11 +51,12 @@ Use PyGithub instead for GitHub operations:
 
 ```python
 import os
-from github import Github
+from github import Github, Auth
 
 # Authenticate using GITHUB_TOKEN from environment
 token = os.getenv('GITHUB_TOKEN')
-g = Github(token)
+auth = Auth.Token(token)
+g = Github(auth=auth)
 
 # Get repository
 repo = g.get_repo("owner/repo")
