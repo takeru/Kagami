@@ -3,29 +3,35 @@
 # requires-python = ">=3.11"
 # ///
 """
-Playwright MCP Server Launch Script for Claude Code
+Playwright MCP Server Launch Script for Claude Code (Timeout Mitigation Version)
 
 Communication flow:
-  Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT Auth Proxy → Internet
+  Claude Code → mcp.py (MCP Wrapper) → playwright-mcp (Firefox) → proxy.py → JWT Auth Proxy → Internet
 
 This script:
-  1. Automatically runs required setup on first startup
-  2. Starts proxy.py in the background
-  3. Launches playwright-mcp in stdio mode
-  4. Stops proxy.py on exit
+  1. Responds immediately as an MCP server on startup (avoiding timeout)
+  2. Runs setup in a background thread
+  3. Proxies requests to playwright-mcp after setup completes
+  4. Stops proxy.py and playwright-mcp on exit
+
+This avoids the 30-second timeout in Claude Code Web.
 """
 import os
 import sys
+import json
 import subprocess
+import threading
 import time
 import atexit
 import signal
-import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
-# Global variable to hold proxy.py process
+# Global variables
 proxy_process = None
+playwright_mcp_process = None
+setup_completed = False
+setup_error = None
 
 
 def log(message: str, level: str = "INFO"):
@@ -36,7 +42,7 @@ def log(message: str, level: str = "INFO"):
         "ERROR": "❌",
         "DEBUG": "🔍"
     }.get(level, "ℹ️")
-    print(f"{prefix} {message}", file=sys.stderr)
+    print(f"{prefix} [MCP Wrapper] {message}", file=sys.stderr, flush=True)
 
 
 def run_command(cmd: list[str], check: bool = True, capture_output: bool = False) -> Optional[subprocess.CompletedProcess]:
@@ -374,6 +380,36 @@ def check_setup_completed() -> bool:
     return all_ok
 
 
+def run_setup_script():
+    """Run setup script (background thread)"""
+    global setup_completed, setup_error
+
+    try:
+        log("Starting background setup...")
+
+        script_dir = Path(__file__).parent
+        setup_script = script_dir / "setup_mcp.py"
+
+        result = subprocess.run(
+            ["uv", "run", "python", str(setup_script)],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy()
+        )
+
+        if result.returncode != 0:
+            setup_error = f"Setup failed: {result.stderr}"
+            log(setup_error, "ERROR")
+            return
+
+        log("Setup completed")
+        setup_completed = True
+
+    except Exception as e:
+        setup_error = f"Error during setup: {e}"
+        log(setup_error, "ERROR")
+
+
 def start_proxy():
     """Start proxy.py"""
     global proxy_process
@@ -382,77 +418,46 @@ def start_proxy():
     https_proxy = os.environ.get('HTTPS_PROXY', '')
     if not https_proxy:
         log("HTTPS_PROXY environment variable not set", "ERROR")
-        sys.exit(1)
+        return False
 
-    log(f"Starting proxy.py... (proxy: {https_proxy[:50]}...)")
-
-    proxy_process = subprocess.Popen(
-        [
-            "uv", "run", "proxy",
-            "--hostname", "127.0.0.1",
-            "--port", "18915",
-            "--plugins", "proxy.plugin.proxy_pool.ProxyPoolPlugin",
-            "--proxy-pool", https_proxy
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-
-    # Wait for proxy.py to start
-    time.sleep(2)
-    log("proxy.py started successfully (localhost:18915)")
-
-
-def stop_proxy():
-    """Stop proxy.py"""
-    global proxy_process
-
-    if proxy_process is None:
-        return
-
-    log("Stopping proxy.py...")
+    log(f"Starting proxy.py...")
 
     try:
-        proxy_process.send_signal(signal.SIGTERM)
-        proxy_process.wait(timeout=5)
-        log("proxy.py stopped")
-    except subprocess.TimeoutExpired:
-        proxy_process.kill()
-        log("proxy.py force terminated", "WARN")
+        proxy_process = subprocess.Popen(
+            [
+                "uv", "run", "proxy",
+                "--hostname", "127.0.0.1",
+                "--port", "18915",
+                "--plugins", "proxy.plugin.proxy_pool.ProxyPoolPlugin",
+                "--proxy-pool", https_proxy
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        # Wait for proxy.py to start
+        time.sleep(2)
+        log("proxy.py started successfully (localhost:18915)")
+        return True
+
     except Exception as e:
-        log(f"Error stopping proxy.py: {e}", "WARN")
+        log(f"proxy.py startup error: {e}", "ERROR")
+        return False
 
 
-def main():
-    """Main process"""
-    # Set HOME environment variable
-    os.environ['HOME'] = '/home/user'
+def start_playwright_mcp():
+    """Start playwright-mcp"""
+    global playwright_mcp_process
 
-    # Check setup status
-    if not check_setup_completed():
-        log("Running first-time setup...")
-        run_setup()
-    else:
-        log("Setup already completed")
-
-    # Register to stop proxy.py on exit
-    atexit.register(stop_proxy)
-
-    # Start proxy.py
-    start_proxy()
-
-    # playwright-mcp configuration file path
     script_dir = Path(__file__).parent
     config_path = str(script_dir / "playwright-firefox-config.json")
 
     if not os.path.exists(config_path):
         log(f"Configuration file not found: {config_path}", "ERROR")
-        sys.exit(1)
+        return False
 
-    log(f"Configuration file: {config_path}")
-    log("Starting playwright-mcp...")
+    log(f"Starting playwright-mcp...")
 
-    # Launch playwright-mcp (stdio mode)
     cmd = [
         'node',
         '/opt/node22/lib/node_modules/@playwright/mcp/cli.js',
@@ -461,20 +466,245 @@ def main():
         '--proxy-server', 'http://127.0.0.1:18915'
     ]
 
-    # Prepare environment variables
     env = os.environ.copy()
     env['HOME'] = '/home/user'
 
-    # Run playwright-mcp (stdio mode)
-    # Claude Code sends MCP protocol requests from stdin,
-    # and receives responses via stdout
     try:
-        subprocess.run(cmd, env=env)
-    except KeyboardInterrupt:
-        log("\nInterrupted")
+        playwright_mcp_process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            bufsize=0
+        )
+
+        log("playwright-mcp started successfully")
+        return True
+
     except Exception as e:
-        log(f"\nError: {e}", "ERROR")
-        sys.exit(1)
+        log(f"playwright-mcp startup error: {e}", "ERROR")
+        return False
+
+
+def stop_processes():
+    """Stop proxy.py and playwright-mcp"""
+    global proxy_process, playwright_mcp_process
+
+    if playwright_mcp_process:
+        log("Stopping playwright-mcp...")
+        try:
+            playwright_mcp_process.terminate()
+            playwright_mcp_process.wait(timeout=5)
+        except:
+            playwright_mcp_process.kill()
+
+    if proxy_process:
+        log("Stopping proxy.py...")
+        try:
+            proxy_process.terminate()
+            proxy_process.wait(timeout=5)
+        except:
+            proxy_process.kill()
+
+
+def read_jsonrpc_message(stream) -> Optional[Dict[str, Any]]:
+    """Read JSON-RPC message"""
+    try:
+        line = stream.readline()
+        if not line:
+            return None
+
+        message = json.loads(line)
+        return message
+    except Exception as e:
+        log(f"Message read error: {e}", "ERROR")
+        return None
+
+
+def write_jsonrpc_message(stream, message: Dict[str, Any]):
+    """Write JSON-RPC message"""
+    try:
+        json_str = json.dumps(message) + "\n"
+        stream.write(json_str)
+        stream.flush()
+    except Exception as e:
+        log(f"Message write error: {e}", "ERROR")
+
+
+def handle_initialize(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle initialize request"""
+    return {
+        "jsonrpc": "2.0",
+        "id": request.get("id"),
+        "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {}
+            },
+            "serverInfo": {
+                "name": "playwright-mcp-wrapper",
+                "version": "1.0.0"
+            }
+        }
+    }
+
+
+def handle_tools_list(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tools/list request"""
+    if setup_error:
+        # When setup error occurs
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {
+                "code": -32603,
+                "message": f"Setup error: {setup_error}"
+            }
+        }
+    elif not setup_completed:
+        # During setup
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "result": {
+                "tools": [{
+                    "name": "playwright_setup_in_progress",
+                    "description": "Playwright MCP server setup is in progress. Please wait...",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {}
+                    }
+                }]
+            }
+        }
+    else:
+        # Setup completed - proxy to playwright-mcp
+        return None  # Requires proxy
+
+
+def proxy_to_playwright_mcp(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Proxy request to playwright-mcp"""
+    global playwright_mcp_process
+
+    if not playwright_mcp_process:
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {
+                "code": -32603,
+                "message": "playwright-mcp is not running"
+            }
+        }
+
+    try:
+        # Send request
+        write_jsonrpc_message(playwright_mcp_process.stdin, request)
+
+        # Receive response
+        response = read_jsonrpc_message(playwright_mcp_process.stdout)
+        return response
+
+    except Exception as e:
+        log(f"Proxy error: {e}", "ERROR")
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {
+                "code": -32603,
+                "message": f"Proxy error: {e}"
+            }
+        }
+
+
+def main():
+    """Main process"""
+    global setup_completed
+
+    # Set HOME environment variable
+    os.environ['HOME'] = '/home/user'
+
+    # Register cleanup on exit
+    atexit.register(stop_processes)
+
+    log("=" * 70)
+    log("Playwright MCP Wrapper Starting")
+    log("=" * 70)
+
+    # Start setup in background
+    setup_thread = threading.Thread(target=run_setup_script, daemon=True)
+    setup_thread.start()
+
+    log("Starting to respond as MCP server")
+
+    # Main loop: Process JSON-RPC messages
+    try:
+        while True:
+            # Read request
+            request = read_jsonrpc_message(sys.stdin)
+            if not request:
+                break
+
+            method = request.get("method")
+            log(f"Received request: {method}", "DEBUG")
+
+            # Process by method
+            response = None
+
+            if method == "initialize":
+                response = handle_initialize(request)
+
+            elif method == "tools/list":
+                response = handle_tools_list(request)
+                if response is None:
+                    # After setup completes, start playwright-mcp and proxy
+                    if not playwright_mcp_process:
+                        if not start_proxy():
+                            response = {
+                                "jsonrpc": "2.0",
+                                "id": request.get("id"),
+                                "error": {
+                                    "code": -32603,
+                                    "message": "Failed to start proxy.py"
+                                }
+                            }
+                        elif not start_playwright_mcp():
+                            response = {
+                                "jsonrpc": "2.0",
+                                "id": request.get("id"),
+                                "error": {
+                                    "code": -32603,
+                                    "message": "Failed to start playwright-mcp"
+                                }
+                            }
+
+                    if response is None:
+                        response = proxy_to_playwright_mcp(request)
+
+            else:
+                # Proxy other methods to playwright-mcp
+                if setup_completed and playwright_mcp_process:
+                    response = proxy_to_playwright_mcp(request)
+                else:
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": request.get("id"),
+                        "error": {
+                            "code": -32603,
+                            "message": "Setup is in progress. Please wait..."
+                        }
+                    }
+
+            # Send response
+            if response:
+                write_jsonrpc_message(sys.stdout, response)
+
+    except KeyboardInterrupt:
+        log("Interrupted")
+    except Exception as e:
+        log(f"Error: {e}", "ERROR")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
 
 
 if __name__ == '__main__':
