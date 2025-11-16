@@ -13,7 +13,7 @@ log() {
 # Save original stdout
 exec 3>&1
 
-# redirect all command output and log to .claude/claude_code_web_setup.log
+# Redirect all command output and log to .claude/claude_code_web_setup.log
 LOG_FILE=".claude/claude_code_web_setup_$(date '+%Y%m%d_%H%M%S').log"
 
 log "Starting setup script. Please check if the script ran successfully until the end."
@@ -23,25 +23,25 @@ log "Detailed log is saved to $LOG_FILE"
 exec > "$LOG_FILE" 2>&1
 
 if false; then
-log "submodule setup script for Claude Code Web"
-log "initial submodule status:"
+log "Submodule setup script for Claude Code Web"
+log "Initial submodule status:"
 git submodule status || log "(no submodules)"
 
-log "check environment variables..."
+log "Check environment variables..."
 if [ -z "$GITHUB_TOKEN" ]; then
-    log "warning: GITHUB_TOKEN environment variable is not set"
-    log "private submodules cannot be accessed"
-    log "please set the GITHUB_TOKEN environment variable"
+    log "Warning: GITHUB_TOKEN environment variable is not set"
+    log "Private submodules cannot be accessed"
+    log "Please set the GITHUB_TOKEN environment variable"
     exit 1
 else
     log "GITHUB_TOKEN environment variable is set"
 fi
 
-log "add Git URL rewrite setting..."
+log "Add Git URL rewrite setting..."
 git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" 2>/dev/null || true
 log "Git configuration completed"
 
-log "initialize submodule ./path/to/submodule"
+log "Initialize submodule ./path/to/submodule"
 if git submodule status ./path/to/submodule | grep -q "^-" ; then
     git submodule update --init --recursive --depth 1 ./path/to/submodule
 else
@@ -49,7 +49,7 @@ else
 fi
 fi # if false
 
-log "setup .venv..."
+log "Setup .venv..."
 uv sync --dev
 
 log "Verify PyGithub installation..."

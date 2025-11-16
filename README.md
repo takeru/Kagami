@@ -1,62 +1,62 @@
 # Kagami
 
-**Claude Code Web 専用** の Playwright MCP サーバー。JWT 認証プロキシ経由でブラウザ自動化を実現します。
+**Claude Code Web exclusive** Playwright MCP server. Enables browser automation via JWT authentication proxy.
 
-## 概要
+## Overview
 
-このプロジェクトは **Claude Code Web 環境専用** で、Playwright を使用するための MCP (Model Context Protocol) サーバーを提供します。
+This project is **designed exclusively for Claude Code Web environment** and provides an MCP (Model Context Protocol) server for using Playwright.
 
-**重要:** このプロジェクトは Claude Code Web 環境でのみ動作するように設計されています。ローカル環境やその他の環境では動作しません。
+**Important:** This project is designed to work only in Claude Code Web environment. It will not work in local environments or other environments.
 
-**主な特徴:**
+**Key Features:**
 
-- 自動セットアップ機能（初回起動時に必要なコンポーネントを自動インストール）
-- JWT 認証プロキシ経由での外部アクセス
-- Firefox ブラウザによる自動化
-- CA 証明書の自動インポート
-- MCP プロトコル対応
+- Auto-setup functionality (automatically installs required components on first startup)
+- External access via JWT authentication proxy
+- Automation using Firefox browser
+- Automatic CA certificate import
+- MCP protocol compliant
 
-## アーキテクチャ
+## Architecture
 
 ```
-Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT認証Proxy → Internet
+Claude Code → mcp.py → playwright-mcp (Firefox) → proxy.py → JWT Auth Proxy → Internet
 ```
 
-1. **mcp.py**: MCP サーバーのエントリーポイント。初回セットアップと proxy.py の起動を担当
-2. **@playwright/mcp**: Playwright の MCP サーバー実装（Node.js）
-3. **Firefox**: ブラウザエンジン（build v1496）
-4. **proxy.py**: ローカルプロキシサーバー
-5. **JWT認証Proxy**: 外部アクセス用の認証プロキシ
+1. **mcp.py**: MCP server entry point. Responsible for initial setup and launching proxy.py
+2. **@playwright/mcp**: Playwright MCP server implementation (Node.js)
+3. **Firefox**: Browser engine (build v1496)
+4. **proxy.py**: Local proxy server
+5. **JWT Auth Proxy**: Authentication proxy for external access
 
-## セットアップ
+## Setup
 
-### 自動セットアップ（推奨）
+### Automatic Setup (Recommended)
 
-初回起動時に自動的に以下がセットアップされます：
+The following will be automatically set up on first startup:
 
-1. certutil のインストール
-2. @playwright/mcp のインストール
-3. Firefox (build v1496) のインストール
-4. Firefox プロファイルの作成
-5. CA 証明書のインポート
-6. 設定ファイルの生成
+1. certutil installation
+2. @playwright/mcp installation
+3. Firefox (build v1496) installation
+4. Firefox profile creation
+5. CA certificate import
+6. Configuration file generation
 
-**注意:**
-- 初回起動時は 30 秒以上かかる場合があります
-- `HTTPS_PROXY` 環境変数の設定が必須です
+**Note:**
+- First startup may take 30 seconds or more
+- `HTTPS_PROXY` environment variable is required
 
-### 環境変数
+### Environment Variables
 
 ```bash
 export HTTPS_PROXY="your_jwt_proxy_url"
 export HOME="/home/user"
 ```
 
-## 使用方法
+## Usage
 
-### MCP サーバーとして起動
+### Launch as MCP Server
 
-`.mcp.json` に設定を記述することで、Claude Code が自動的に起動します：
+Configure in `.mcp.json` and Claude Code will automatically launch it:
 
 ```json
 {
@@ -74,74 +74,74 @@ export HOME="/home/user"
 }
 ```
 
-### 手動起動（デバッグ用）
+### Manual Launch (For Debugging)
 
 ```bash
 python3 playwright_mcp_claude_code_web/mcp.py
 ```
 
-**注意:** `mcp.py` は標準ライブラリのみを使用します。ただし、`proxy.py` コマンドが環境にインストールされている必要があります。
+**Note:** `mcp.py` uses only standard libraries. However, the `proxy.py` command must be installed in the environment.
 
-## ファイル構成
+## File Structure
 
 ```
 .
 ├── playwright_mcp_claude_code_web/
-│   └── mcp.py                          # MCP サーバー本体（標準ライブラリのみ使用）
-├── .mcp.json                           # MCP サーバー設定
-└── README.md                           # このファイル
+│   └── mcp.py                          # MCP server (uses only standard library)
+├── .mcp.json                           # MCP server configuration
+└── README.md                           # This file
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
-### 接続タイムアウト
+### Connection Timeout
 
-初回起動時は Firefox のダウンロードとインストールに時間がかかります（30秒以上）。`.mcp.json` の `timeout` を 180000 (3分) に設定することを推奨します。
+First startup requires time for Firefox download and installation (30+ seconds). It's recommended to set `timeout` to 180000 (3 minutes) in `.mcp.json`.
 
-### プロキシエラー
+### Proxy Error
 
-`HTTPS_PROXY` 環境変数が設定されていることを確認してください：
+Verify that `HTTPS_PROXY` environment variable is set:
 
 ```bash
 echo $HTTPS_PROXY
 ```
 
-### CA 証明書エラー
+### CA Certificate Error
 
-CA 証明書が正しくインポートされているか確認：
+Verify CA certificate is properly imported:
 
 ```bash
 certutil -L -d sql:/home/user/firefox-profile
 ```
 
-以下の証明書が表示されるはずです：
+The following certificates should be displayed:
 - Anthropic TLS Inspection CA
 - Anthropic TLS Inspection CA Production
 
-## 技術詳細
+## Technical Details
 
-### 通信フロー
+### Communication Flow
 
-1. Claude Code が MCP プロトコルで `mcp.py` にリクエスト（stdin/stdout）
-2. `mcp.py` が `proxy.py` を起動（localhost:18915）
-3. `mcp.py` が `@playwright/mcp` を起動
-4. Playwright が Firefox を起動（プロキシ設定: localhost:18915）
-5. `proxy.py` が JWT 認証プロキシに転送
-6. 外部サイトにアクセス
+1. Claude Code sends request to `mcp.py` via MCP protocol (stdin/stdout)
+2. `mcp.py` starts `proxy.py` (localhost:18915)
+3. `mcp.py` starts `@playwright/mcp`
+4. Playwright launches Firefox (proxy setting: localhost:18915)
+5. `proxy.py` forwards to JWT authentication proxy
+6. Access external sites
 
-### セキュリティ
+### Security
 
-- TLS 検査用の CA 証明書を Firefox プロファイルにインポート
-- すべての HTTPS 通信は JWT 認証プロキシ経由
-- Firefox は専用プロファイルで動作（/home/user/firefox-profile）
+- Import CA certificate for TLS inspection into Firefox profile
+- All HTTPS traffic goes through JWT authentication proxy
+- Firefox runs with dedicated profile (/home/user/firefox-profile)
 
-## 参考資料
+## References
 
 - [Playwright Documentation](https://playwright.dev/)
 - [@playwright/mcp GitHub](https://github.com/microsoft/playwright)
 - [MCP Protocol](https://modelcontextprotocol.io/)
 - [proxy.py Documentation](https://github.com/abhinavsingh/proxy.py)
 
-## ライセンス
+## License
 
 MIT
