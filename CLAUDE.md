@@ -30,22 +30,28 @@ Claude Code Webの環境では @CLAUDE_CODE_WEB.md を参照してください�
 
 このリポジトリには Claude Code Web 用の Playwright MCP サーバー (`playwright_mcp_claude_code_web/mcp.py`) が含まれています。Claude Code Web 環境でのみ動作するように設計されています。
 
-### 自動セットアップ
+### 遅延ツール登録（Lazy Tool Registration）
 
-MCPサーバーは初回起動時に以下を自動的にセットアップします：
+MCPサーバーは**起動時のタイムアウトを回避**するため、遅延ツール登録方式を採用しています：
 
-1. certutil のインストール
-2. @playwright/mcp のインストール
-3. proxy.py のインストール（uv pip install proxy.py）
-4. Firefox (build v1496) のインストール
-5. Firefoxプロファイルの作成
-6. CA証明書のインポート
-7. proxy.py の起動
+**初回起動時の動作：**
+1. MCPサーバーとして即座に応答（タイムアウト回避）
+2. バックグラウンドでセットアップを実行：
+   - certutil のインストール
+   - @playwright/mcp のインストール
+   - proxy.py のインストール（uv pip install proxy.py）
+   - Firefox (build v1496) のインストール
+   - Firefoxプロファイルの作成
+   - CA証明書のインポート
+3. セットアップ中は「セットアップ中」というステータスツールを返す
+4. セットアップ完了後、playwright-mcpプロセスを起動
+5. 以降のリクエストをplaywright-mcpにプロキシ
 
 **注意:**
-- 初回起動時は30秒以上かかる場合があります
+- 初回起動時はセットアップに数分かかります
+- セットアップ中は`mcp_setup_status`ツールのみが利用可能です
+- セットアップ完了後、Playwright MCPの全ツールが利用可能になります
 - `HTTPS_PROXY` 環境変数の設定が必須です
-- セットアップは自動的に実行されるため、手動での操作は不要です
 
 ### 依存関係
 
