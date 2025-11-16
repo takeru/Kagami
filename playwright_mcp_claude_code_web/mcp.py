@@ -83,6 +83,36 @@ def check_proxy_installed() -> bool:
     return result and result.returncode == 0
 
 
+def get_installed_firefox_version() -> Optional[Path]:
+    """インストール済みのFirefoxバージョンを動的に検出
+
+    Returns:
+        インストール済みのFirefoxディレクトリのPath。見つからない場合はNone。
+        複数のバージョンがある場合は、最新バージョン（最大の数値）を返す。
+    """
+    cache_dir = Path("/home/user/.cache/ms-playwright")
+
+    if not cache_dir.exists():
+        return None
+
+    # firefox-* パターンのディレクトリを検索
+    firefox_dirs = list(cache_dir.glob("firefox-*"))
+
+    if not firefox_dirs:
+        return None
+
+    # バージョン番号でソート（最新バージョンを優先）
+    # firefox-1496 -> 1496 のように数値部分を抽出してソート
+    def extract_version(path: Path) -> int:
+        try:
+            return int(path.name.split('-')[1])
+        except (IndexError, ValueError):
+            return 0
+
+    firefox_dirs.sort(key=extract_version, reverse=True)
+    return firefox_dirs[0]
+
+
 def setup_certutil():
     """certutilのインストール確認"""
     log("certutilのインストール状況を確認中...")
@@ -131,16 +161,17 @@ def setup_proxy_py():
 
 
 def setup_firefox():
-    """Firefox build v1496のインストール"""
-    log("Firefox build v1496のインストール状況を確認中...")
+    """Firefoxのインストール"""
+    log("Firefoxのインストール状況を確認中...")
 
-    firefox_build = Path("/home/user/.cache/ms-playwright/firefox-1496")
+    firefox_build = get_installed_firefox_version()
 
-    if firefox_build.exists():
-        log(f"Firefox build v1496は既にインストールされています: {firefox_build}")
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefoxは既にインストールされています: {firefox_build} (build v{version})")
         return
 
-    log("Firefox build v1496をインストール中... (数分かかる場合があります)", "WARN")
+    log("Firefoxをインストール中... (数分かかる場合があります)", "WARN")
 
     env = os.environ.copy()
     env["HOME"] = "/home/user"
@@ -152,7 +183,13 @@ def setup_firefox():
         "firefox"
     ])
 
-    log("Firefox build v1496をインストールしました")
+    # インストール後のバージョンを確認
+    firefox_build = get_installed_firefox_version()
+    if firefox_build:
+        version = firefox_build.name.split('-')[1] if '-' in firefox_build.name else 'unknown'
+        log(f"Firefoxをインストールしました: {firefox_build} (build v{version})")
+    else:
+        log("Firefoxのインストールは完了しましたが、バージョンの確認ができませんでした", "WARN")
 
 
 def setup_firefox_profile():
@@ -323,7 +360,7 @@ def check_setup_completed() -> bool:
         ("certutil", lambda: check_command_exists("certutil")),
         ("@playwright/mcp", lambda: check_npm_package_installed("@playwright/mcp")),
         ("proxy.py", lambda: check_proxy_installed()),
-        ("Firefox", lambda: Path("/home/user/.cache/ms-playwright/firefox-1496").exists()),
+        ("Firefox", lambda: get_installed_firefox_version() is not None),
         ("Firefoxプロファイル", lambda: Path("/home/user/firefox-profile/cert9.db").exists()),
         ("MCP設定ファイル", lambda: (Path(__file__).parent / "playwright-firefox-config.json").exists()),
     ]
