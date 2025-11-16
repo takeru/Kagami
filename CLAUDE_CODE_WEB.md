@@ -42,3 +42,35 @@ uv run pytest tests
 ```bash
 uv run script.py  # if script.py has PEP 723 metadata
 ```
+
+## GitHub Operations
+
+**The `gh` command is NOT available in Claude Code Web environment.**
+
+Use PyGithub instead for GitHub operations:
+
+```python
+from github import Github
+
+# Authenticate using environment variable
+g = Github()  # Uses GITHUB_TOKEN from environment
+
+# Get repository
+repo = g.get_repo("owner/repo")
+
+# Create issue
+issue = repo.create_issue(
+    title="Issue title",
+    body="Issue body"
+)
+
+# Create pull request
+pr = repo.create_pull(
+    title="PR title",
+    body="PR body",
+    head="feature-branch",
+    base="main"
+)
+```
+
+PyGithub is already installed in this project's dependencies.
